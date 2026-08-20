@@ -4,11 +4,10 @@
 
    13 views — 5 exterior, 8 interior.
 
-   RENAME the panorama JPGs to match the "file" lines below,
-   then drop them into the panoramas/ folder.
-
-   All lowercase. GitHub treats Ext-Front.JPG and
-   ext-front.jpg as two different files.
+   NOTE: the JPGs sit in the repository root, alongside
+   index.html, so the file names carry no folder prefix.
+   If you ever move them into a panoramas/ folder, put
+   "panoramas/" back in front of every file name.
 
    Every block ends with a comma  },  except the last one  }
    ═══════════════════════════════════════════════════════════ */
@@ -22,71 +21,69 @@ window.TOUR = {
 
     /* ─── EXTERIOR ─────────────────────────────────────── */
 
-    { file: "panoramas/mmv-ext-01-front.jpg",
+    { file: "mmv-ext-01-front.jpg",
       name: "Front Elevation",
       group: "Exterior",
       heading: 0 },
 
-    { file: "panoramas/mmv-ext-02-right.jpg",
+    { file: "mmv-ext-02-right.jpg",
       name: "Right Elevation",
       group: "Exterior",
       heading: 0 },
 
-    { file: "panoramas/mmv-ext-03-rear.jpg",
+    { file: "mmv-ext-03-rear.jpg",
       name: "Rear Elevation",
       group: "Exterior",
       heading: 0 },
 
-    { file: "panoramas/mmv-ext-04-left.jpg",
+    { file: "mmv-ext-04-left.jpg",
       name: "Left Elevation",
       group: "Exterior",
       heading: 0 },
 
-    { file: "panoramas/mmv-ext-05-roof-terrace.jpg",
+    { file: "mmv-ext-05-roof-terrace.jpg",
       name: "Roof Terrace",
       group: "Exterior",
       heading: 0 },
 
     /* ─── INTERIOR ─────────────────────────────────────── */
-    /* Ordered strongest first — the client's attention is
-       highest on the first two views they open.            */
 
-    { file: "panoramas/mmv-int-01-glass-pavilion.jpg",
+    { file: "mmv-int-01-glass-pavilion.jpg",
       name: "Glass Pavilion",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-02-dining-hall.jpg",
+    { file: "mmv-int-02-dining-hall.jpg",
       name: "Dining Hall",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-03-surau-female.jpg",
+    { file: "mmv-int-03-surau-female.jpg",
       name: "Surau — Female",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-04-surau-male.jpg",
+    { file: "mmv-int-04-surau-male.jpg",
       name: "Surau — Male",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-05-kitchen.jpg",
+    { file: "mmv-int-05-kitchen.jpg",
       name: "Kitchen",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-06-admin-office.jpg",
+    { file: "mmv-int-06-admin-office.jpg",
       name: "Admin Office",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-07-washroom-female.jpg",
+    { file: "mmv-int-07-washroom-female.jpg",
       name: "Washroom — Female",
       group: "Interior",
       heading: 0 },
 
-    { file: "panoramas/mmv-int-08-washroom-male.jpg",
+    { file: "mmv-int-08-washroom-male.jpg",
       name: "Washroom — Male",
       group: "Interior",
       heading: 0 }
