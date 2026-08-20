@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>360° Tour</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#141210;touch-action:none}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#F2EFE9;
+    -webkit-font-smoothing:antialiased}
+  canvas{display:block}
+
+  /* masthead */
+  #hdr{position:fixed;top:0;left:0;right:0;z-index:9;padding:18px 22px 38px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(20,18,16,.74),rgba(20,18,16,0));transition:opacity .3s}
+  .fm{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(242,239,233,.55);font-weight:600}
+  .fm b{color:#8A3B2B}
+  .pj{margin-top:5px;font-size:18px;font-weight:650;letter-spacing:-.01em}
+  .vw{margin-top:2px;font-size:13px;color:rgba(242,239,233,.68)}
+  .vw i{font-style:normal;color:#8A3B2B;font-weight:600;text-transform:uppercase;
+    letter-spacing:.14em;font-size:10px;margin-right:8px}
+
+  /* bottom panel */
+  #panel{position:fixed;bottom:0;left:0;right:0;z-index:9;padding:30px 18px 14px;
+    background:linear-gradient(0deg,rgba(20,18,16,.86),rgba(20,18,16,0));transition:opacity .3s}
+  #tabs{display:flex;margin-bottom:10px}
+  .tab{appearance:none;border:none;background:none;color:rgba(242,239,233,.5);font:inherit;
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+    padding:5px 2px;margin-right:20px;cursor:pointer;border-bottom:2px solid transparent}
+  .tab.on{color:#F2EFE9;border-bottom-color:#8A3B2B}
+  .tab:focus-visible{outline:2px solid #8A3B2B;outline-offset:2px}
+  #strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+  #strip::-webkit-scrollbar{height:3px}
+  #strip::-webkit-scrollbar-thumb{background:rgba(242,239,233,.25)}
+  .th{appearance:none;border:1px solid transparent;background:none;padding:0;cursor:pointer;
+    flex:none;width:96px;border-radius:2px;overflow:hidden;text-align:left}
+  .th .box{position:relative;height:48px;background:#221E1A;overflow:hidden}
+  .th img{display:block;width:100%;height:100%;object-fit:cover;opacity:.62;transition:opacity .2s}
+  .th em{display:block;font-style:normal;font-size:10px;line-height:1.3;padding:4px 3px 2px;
+    color:rgba(242,239,233,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .th:hover img{opacity:.9}
+  .th.on{border-color:#8A3B2B}
+  .th.on img{opacity:1}
+  .th.on em{color:#F2EFE9;font-weight:600}
+  .th:focus-visible{outline:2px solid #8A3B2B;outline-offset:1px}
+
+  /* instruments */
+  #ui{position:fixed;top:16px;right:22px;z-index:10;display:flex;gap:7px}
+  #ui[hidden]{display:none}
+  #ui b{align-self:center;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:rgba(242,239,233,.5);font-weight:400;margin-right:4px;font-variant-numeric:tabular-nums}
+  #ui b span{color:#F2EFE9;font-weight:650}
+  #ui button{appearance:none;border:1px solid rgba(242,239,233,.22);background:rgba(20,18,16,.5);
+    color:#F2EFE9;font:inherit;font-size:11px;letter-spacing:.05em;padding:7px 12px;
+    border-radius:2px;cursor:pointer}
+  #ui button:hover{background:rgba(242,239,233,.13)}
+  #ui button:focus-visible{outline:2px solid #8A3B2B;outline-offset:2px}
+  body.bare #hdr,body.bare #panel{opacity:0;pointer-events:none}
+
+  /* loading + cover */
+  #load{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;
+    background:rgba(20,18,16,.94);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(242,239,233,.5)}
+  #cover{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:20px;padding:32px;text-align:center;background:#141210}
+  #cover .rule{width:44px;height:2px;background:#8A3B2B}
+  #cover h1{font-size:clamp(23px,5vw,34px);font-weight:650;letter-spacing:-.02em;line-height:1.2}
+  #cover p{font-size:14px;color:rgba(242,239,233,.6);max-width:34ch;line-height:1.6}
+  #cover .count{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,239,233,.4)}
+  #start{appearance:none;border:none;background:#8A3B2B;color:#F2EFE9;font:inherit;font-size:13.5px;
+    font-weight:600;padding:13px 30px;border-radius:3px;cursor:pointer}
+  #start:hover{background:#A04733}
+  #start:focus-visible{outline:2px solid #F2EFE9;outline-offset:2px}
+  .fail{color:#E0876F;font-size:13px;line-height:1.6;max-width:44ch}
+
+  @media(max-width:560px){
+    .pj{font-size:16px}
+    #ui{right:14px;top:14px}
+    #ui b{display:none}
+    .th{width:82px}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="fm">FSM Jayapena <b>&amp;</b> Co.</div>
+  <div class="pj" id="pj"></div>
+  <div class="vw"><i id="gp"></i><span id="vw"></span></div>
+</div>
+
+<div id="ui" hidden>
+  <b>Lens <span id="ln">50mm</span></b>
+  <button id="rs">Reset</button>
+  <button id="hd">Hide panel</button>
+  <button id="fs">Full screen</button>
+</div>
+
+<div id="panel"><div id="tabs"></div><div id="strip"></div></div>
+<div id="load">Loading view</div>
+
+<div id="cover">
+  <div class="rule"></div>
+  <h1 id="ch">360° Tour</h1>
+  <p id="cp"></p>
+  <div class="count" id="cc"></div>
+  <button id="start">Enter the tour</button>
+  <div class="fail" id="cf"></div>
+</div>
+
+<script src="views.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+
+var CFG = window.TOUR || {};
+var V   = (CFG.views || []).slice();
+
+/* cover */
+$('pj').textContent = CFG.project || '360° Tour';
+$('ch').textContent = CFG.project || '360° Tour';
+$('cp').textContent = CFG.note || 'Drag to look around. Pinch or scroll to zoom.';
+$('cc').textContent = V.length + ' views — 360°';
+document.title = (CFG.project || '360') + ' — 360° Tour';
+
+if(!V.length){
+  $('cf').textContent = 'No views are listed in views.js. Open that file and add an entry for each panorama.';
+  $('start').disabled = true;
+}
+if(!window.THREE){
+  $('cf').textContent = 'The 3D library did not load. This page needs an internet connection the first time it opens.';
+  $('start').disabled = true;
+}
+
+/* group order: as listed, Exterior before Interior */
+var groups = [];
+V.forEach(function(v){ if(groups.indexOf(v.group) < 0) groups.push(v.group); });
+var active = groups[0];
+var cur = -1, cache = {};
+
+/* scene */
+var lon = 0, lat = 0, fov = 72, drag = false, px = 0, py = 0, pl = 0, pt = 0;
+var sc, cam, rn, cv, mat;
+
+function initScene(){
+  sc  = new THREE.Scene();
+  cam = new THREE.PerspectiveCamera(fov, innerWidth/innerHeight, 0.1, 1100);
+  rn  = new THREE.WebGLRenderer({antialias:true});
+  rn.setPixelRatio(Math.min(devicePixelRatio, 2));
+  rn.setSize(innerWidth, innerHeight);
+  document.body.appendChild(rn.domElement);
+  cv = rn.domElement; cv.style.cursor = 'grab';
+
+  var g = new THREE.SphereGeometry(500, 64, 40); g.scale(-1,1,1);
+  mat = new THREE.MeshBasicMaterial();
+  sc.add(new THREE.Mesh(g, mat));
+
+  bind();
+  loop();
+}
+
+/* tabs + thumbnails */
+function paintTabs(){
+  var box = $('tabs'); box.innerHTML = '';
+  groups.forEach(function(gr){
+    var b = document.createElement('button');
+    b.className = 'tab' + (gr === active ? ' on' : '');
+    b.textContent = gr;
+    b.onclick = function(){ active = gr; paintTabs(); paintStrip(); };
+    box.appendChild(b);
+  });
+}
+function paintStrip(){
+  var box = $('strip'); box.innerHTML = '';
+  V.forEach(function(v, i){
+    if(v.group !== active) return;
+    var b = document.createElement('button');
+    b.className = 'th' + (i === cur ? ' on' : '');
+    b.innerHTML = '<div class="box"><img loading="lazy" src="' +
+      (v.thumb || v.file) + '" alt=""></div><em>' + v.name + '</em>';
+    b.onclick = function(){ show(i); };
+    box.appendChild(b);
+  });
+}
+
+function show(i){
+  if(i === cur) return;
+  cur = i;
+  $('vw').textContent = V[i].name;
+  $('gp').textContent = V[i].group;
+  lon = V[i].heading || 0; lat = 0; fov = 72;
+  paintStrip();
+
+  if(cache[i]){ mat.map = cache[i]; mat.needsUpdate = true; return; }
+  $('load').style.display = 'flex';
+  new THREE.TextureLoader().load(V[i].file,
+    function(t){
+      t.minFilter = THREE.LinearFilter;
+      if(rn.capabilities.getMaxAnisotropy) t.anisotropy = rn.capabilities.getMaxAnisotropy();
+      cache[i] = t; mat.map = t; mat.needsUpdate = true;
+      $('load').style.display = 'none';
+      $('ui').hidden = false;
+    },
+    undefined,
+    function(){
+      $('load').innerHTML = 'Could not load ' + V[i].file;
+    }
+  );
+}
+
+$('start').onclick = function(){
+  $('cover').style.display = 'none';
+  initScene(); paintTabs(); show(0);
+};
+
+/* input */
+function bind(){
+  addEventListener('resize', function(){
+    cam.aspect = innerWidth/innerHeight;
+    cam.updateProjectionMatrix();
+    rn.setSize(innerWidth, innerHeight);
+  });
+  cv.addEventListener('pointerdown', function(e){
+    drag = true; cv.style.cursor = 'grabbing';
+    px = e.clientX; py = e.clientY; pl = lon; pt = lat;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    var k = fov/72;
+    lon = pl - (e.clientX - px) * 0.16 * k;
+    lat = pt + (e.clientY - py) * 0.16 * k;
+  });
+  ['pointerup','pointercancel'].forEach(function(ev){
+    cv.addEventListener(ev, function(){ drag = false; cv.style.cursor = 'grab'; });
+  });
+  cv.addEventListener('wheel', function(e){
+    e.preventDefault();
+    fov = Math.max(22, Math.min(95, fov + e.deltaY * 0.045));
+  }, {passive:false});
+
+  var pz = null;
+  function dd(e){ var a=e.touches[0], b=e.touches[1];
+    return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+  cv.addEventListener('touchstart', function(e){
+    if(e.touches.length === 2) pz = {d:dd(e), f:fov};
+  }, {passive:true});
+  cv.addEventListener('touchmove', function(e){
+    if(e.touches.length === 2 && pz){
+      e.preventDefault(); drag = false;
+      fov = Math.max(22, Math.min(95, pz.f * pz.d / dd(e)));
+    }
+  }, {passive:false});
+  cv.addEventListener('touchend', function(){ pz = null; }, {passive:true});
+
+  addEventListener('keydown', function(e){
+    var s = fov/12;
+    if(e.key==='ArrowLeft') lon -= s;
+    else if(e.key==='ArrowRight') lon += s;
+    else if(e.key==='ArrowUp') lat += s;
+    else if(e.key==='ArrowDown') lat -= s;
+    else if(e.key==='+'||e.key==='=') fov = Math.max(22, fov-4);
+    else if(e.key==='-') fov = Math.min(95, fov+4);
+    else return;
+    e.preventDefault();
+  });
+
+  $('rs').onclick = function(){ lon = V[cur].heading || 0; lat = 0; fov = 72; };
+  $('fs').onclick = function(){
+    document.fullscreenElement ? document.exitFullscreen()
+                               : document.documentElement.requestFullscreen();
+  };
+  $('hd').onclick = function(){
+    var off = document.body.classList.toggle('bare');
+    this.textContent = off ? 'Show panel' : 'Hide panel';
+  };
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  lat = Math.max(-85, Math.min(85, lat));
+  var p = THREE.MathUtils.degToRad(90 - lat), t = THREE.MathUtils.degToRad(lon);
+  cam.lookAt(500*Math.sin(p)*Math.cos(t), 500*Math.cos(p), 500*Math.sin(p)*Math.sin(t));
+  cam.fov = fov; cam.updateProjectionMatrix();
+  rn.render(sc, cam);
+  $('ln').textContent = Math.round(12/Math.tan(THREE.MathUtils.degToRad(fov)/2)) + 'mm';
+}
+})();
+</script>
+</body>
+</html>
