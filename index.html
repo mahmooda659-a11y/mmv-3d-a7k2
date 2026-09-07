@@ -36,6 +36,16 @@
   .psv-container{background:var(--ink)}
   .psv-map{border:1px solid var(--line)!important;box-shadow:0 8px 30px rgba(0,0,0,.55)!important}
 
+  /* ═══ loading ═══ */
+  #boot{position:fixed;inset:0;z-index:190;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;background:var(--ink)}
+  #boot.on{display:flex}
+  #boot .ring{width:34px;height:34px;border-radius:50%;border:2px solid rgba(242,239,233,.18);
+    border-top-color:var(--clay);animation:spin 1s linear infinite}
+  #boot .t{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+  #boot .s{font-size:12px;color:rgba(242,239,233,.34)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
   /* ═══ masthead ═══════════════════════════════════════ */
   #hdr{position:fixed;top:0;left:0;right:0;z-index:40;padding:16px 20px 40px;
     pointer-events:none;background:linear-gradient(180deg,rgba(20,18,16,.72),transparent);
@@ -206,7 +216,10 @@
   #cover{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:18px;padding:32px;text-align:center;
     background:var(--ink);transition:opacity 1s ease}
-  #coverImg{flex:none;width:min(100%,980px);height:auto;max-height:72vh;
+  #cover.photo{display:block!important;position:fixed;inset:0;padding:0!important}
+  #coverInner{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:20px;padding:20px}
+  #coverImg{display:block;width:min(94vw,1100px);height:auto;max-height:68vh;
     object-fit:contain;border-radius:2px;opacity:0;animation:rise 1.2s .1s forwards}
   #coverImg[hidden]{display:none}
   /* When a cover photograph is supplied it already carries the
@@ -317,6 +330,8 @@
 <body>
 
 <div id="stage"></div>
+<div id="boot"><div class="ring"></div><div class="t">Preparing the tour</div>
+  <div class="s" id="bootNote">First view is loading</div></div>
 <audio id="amb" loop preload="none"></audio>
 <div id="spots"></div>
 
@@ -371,6 +386,7 @@
 </div>
 
 <div id="cover">
+ <div id="coverInner">
   <img id="coverImg" alt="" hidden>
   <img id="coverLogo" alt="" hidden>
   <div class="rule"></div>
@@ -379,6 +395,7 @@
   <div class="count" id="cc"></div>
   <button id="start">Enter the tour</button>
   <div class="fail" id="cf"></div>
+ </div>
 </div>
 
 <div id="author">
@@ -480,14 +497,16 @@ async function build() {
 
   const nodes = V.map(v => {
     const n = { id: v.id, panorama: v.file, name: v.name, links: [] };
-    if (typeof v.north === 'number' && v.north) n.sphereCorrection = { pan: (-v.north) + 'deg' };
+    /* The panorama is left unrotated. North is applied to the
+       hotspots and to the map instead, so what was clicked in
+       the Studio lands in exactly the same place here.        */
     if (size) n.map = v.pin ? { x: Math.round(v.pin.x * size.w), y: Math.round(v.pin.y * size.h) } : false;
     return n;
   });
 
   const tourCfg = {
     dataMode: 'client', positionMode: 'manual', renderMode: '3d',
-    nodes, startNodeId: V[0].id, preload: true,
+    nodes, startNodeId: V[0].id, preload: false,
     transitionOptions: { showLoader: true, speed: '20rpm', effect: 'fade', rotation: true },
   };
   if (size) tourCfg.map = { imageUrl: CFG.plan.image,
@@ -525,7 +544,8 @@ async function build() {
   viewer.addEventListener('ready', () => {
     const n = tour.getCurrentNode();
     if (n) onNode(n.id);
-    setTimeout(fillStrip, 600);
+    $('boot').classList.remove('on');
+    setTimeout(fillStrip, 900);
     spin.start();
     ['mousedown', 'touchstart', 'wheel', 'keydown'].forEach(e =>
       window.addEventListener(e, () => spin.stop(), { once: true }));
@@ -553,6 +573,9 @@ function onNode(id) {
   nc.value = (typeof v.north === 'number') ? v.north : 0;
   $('northVal').textContent = nc.value;
   drawSpots(id);
+  if (map && typeof v.north === 'number') {
+    try { map.setOption('rotation', (-v.north) + 'deg'); } catch (e) {}
+  }
   markStrip();
   markGrid();
 }
@@ -569,17 +592,19 @@ function drawSpots(id) {
   const v = V.find(x => x.id === id);
   if (!v) return;
 
+  const N = v.north || 0;
+
   (v.links || []).forEach(L => {
     const dest = V.find(x => x.id === L.to);
     if (!dest) { console.warn('[tour] unknown link target:', L.to); return; }
-    add('nav', L.yaw, L.pitch ?? -6, L.label || dest.name, CHEV,
+    add('nav', (L.yaw || 0) + N, L.pitch ?? -6, L.label || dest.name, CHEV,
         () => tour.setCurrentNode(L.to));
   });
 
   (v.spots || []).forEach(S => {
     const M = S.mat ? (CFG.materials || {})[S.mat] : null;
     const label = S.title || (M && M.title) || S.mat || 'Detail';
-    add('info', S.yaw, S.pitch ?? 0, label, IBOX, () => openMat(S));
+    add('info', (S.yaw || 0) + N, S.pitch ?? 0, label, IBOX, () => openMat(S));
   });
 }
 
@@ -841,7 +866,9 @@ function wireAuthoring() {
 
   $('northCal').oninput  = function () { $('northVal').textContent = this.value; };
   $('northCal').onchange = function () {
-    if (cur) tour.updateNode({ id: cur, sphereCorrection: { pan: (-this.value) + 'deg' } });
+    const v = V.find(x => x.id === cur);
+    if (v) { v.north = +this.value; drawSpots(cur);
+             if (map) { try { map.setOption('rotation', (-v.north) + 'deg'); } catch (e) {} } }
   };
   $('northSave').onclick = () => {
     const v = V.find(x => x.id === cur) || {};
