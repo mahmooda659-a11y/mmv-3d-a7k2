@@ -206,8 +206,8 @@
   #cover{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:18px;padding:32px;text-align:center;
     background:var(--ink);transition:opacity 1s ease}
-  #coverImg{max-width:100%;max-height:74vh;object-fit:contain;border-radius:2px;
-    opacity:0;animation:rise 1.2s .1s forwards}
+  #coverImg{flex:none;width:min(100%,980px);height:auto;max-height:72vh;
+    object-fit:contain;border-radius:2px;opacity:0;animation:rise 1.2s .1s forwards}
   #coverImg[hidden]{display:none}
   /* When a cover photograph is supplied it already carries the
      titles, so the typographic block steps aside.              */
@@ -304,7 +304,7 @@
     .th em{display:none}
     #tools{padding-top:4px}
     .tool{width:34px;height:28px}
-    #coverImg{max-height:52vh}
+    #coverImg{max-height:56vh;width:min(100%,620px)}
     #cover.photo{gap:12px;padding:14px}
     #start{padding:10px 24px}
     .sheet{padding:14px 16px}
@@ -525,6 +525,7 @@ async function build() {
   viewer.addEventListener('ready', () => {
     const n = tour.getCurrentNode();
     if (n) onNode(n.id);
+    setTimeout(fillStrip, 600);
     spin.start();
     ['mousedown', 'touchstart', 'wheel', 'keydown'].forEach(e =>
       window.addEventListener(e, () => spin.stop(), { once: true }));
@@ -665,13 +666,33 @@ function buildStrip() {
   V.forEach(v => {
     const b = document.createElement('button');
     b.className = 'th'; b.dataset.id = v.id; b.title = v.name;
-    b.innerHTML = '<div class="im"><img loading="lazy" decoding="async" src="' + thumbOf(v) + '" alt=""></div>' +
+    b.innerHTML = '<div class="im"><img decoding="async" data-src="' + thumbOf(v) + '" alt=""></div>' +
       '<div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
       '<em>' + v.name + '</em>';
     b.onclick = () => tour.setCurrentNode(v.id);
     box.appendChild(b);
   });
 }
+/* Thumbnails arrive one at a time, and only once the first
+   panorama is on screen. Without this the strip pulls every
+   panorama at once and the tour crawls on mobile data.     */
+function fillStrip() {
+  const imgs = [...$('strip').querySelectorAll('img[data-src]')];
+  let i = 0;
+  (function next() {
+    if (i >= imgs.length) return;
+    const im = imgs[i++];
+    im.onload = im.onerror = () => setTimeout(next, 90);
+    if (im.onerror) im.addEventListener('error', () => {
+      const box = im.parentElement;
+      box.style.background = '#2A2521';
+      im.remove();
+    }, { once: true });
+    im.src = im.dataset.src;
+    im.removeAttribute('data-src');
+  })();
+}
+
 function markStrip() {
   [...$('strip').children].forEach(b => {
     b.classList.toggle('on', b.dataset.id === cur);
