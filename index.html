@@ -2,294 +2,776 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<title>360° Tour</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FSM Jayapena — Tour Studio</title>
+
+<!--
+  ═══════════════════════════════════════════════════════════════
+  FSM JAYAPENA & CO. — TOUR STUDIO
+
+  Builds views.js by clicking. No hand-typed coordinates,
+  no braces, no commas.
+
+  1. Drop the panoramas in.        Views appear.
+  2. Drop the floor plan in.       Click to place each pin.
+  3. Per view: set north, then click doorways and materials.
+  4. Export views.js. Upload it to the repo.
+
+  Runs entirely on this machine. Nothing is uploaded anywhere.
+  Export often — closing the tab loses unsaved work.
+  ═══════════════════════════════════════════════════════════════
+-->
+
 <style>
+  :root{--ink:#141210;--ink2:#1F1C18;--clay:#8A3B2B;--clay-hi:#A84733;
+    --paper:#F2EFE9;--dim:rgba(242,239,233,.56);--line:rgba(242,239,233,.15)}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden;background:#141210;touch-action:none}
-  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#F2EFE9;
-    -webkit-font-smoothing:antialiased}
-  canvas{display:block}
+  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--paper);font-size:13px;-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
 
-  /* masthead */
-  #hdr{position:fixed;top:0;left:0;right:0;z-index:9;padding:18px 22px 38px;pointer-events:none;
-    background:linear-gradient(180deg,rgba(20,18,16,.74),rgba(20,18,16,0));transition:opacity .3s}
-  .fm{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(242,239,233,.55);font-weight:600}
-  .fm b{color:#8A3B2B}
-  .pj{margin-top:5px;font-size:18px;font-weight:650;letter-spacing:-.01em}
-  .vw{margin-top:2px;font-size:13px;color:rgba(242,239,233,.68)}
-  .vw i{font-style:normal;color:#8A3B2B;font-weight:600;text-transform:uppercase;
-    letter-spacing:.14em;font-size:10px;margin-right:8px}
+  /* ═══ chrome ═══ */
+  header{display:flex;align-items:center;gap:14px;padding:11px 16px;
+    border-bottom:1px solid var(--line);background:var(--ink2);flex:none}
+  .brand{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dim);font-weight:700}
+  .brand b{color:var(--clay)}
+  .brand em{font-style:normal;display:block;font-size:14px;letter-spacing:-.01em;
+    color:var(--paper);text-transform:none;margin-top:2px;font-weight:650}
+  header .sp{flex:1}
+  .btn{border:1px solid var(--line);background:rgba(242,239,233,.05);padding:8px 14px;
+    border-radius:2px;font-size:12px;transition:background .18s}
+  .btn:hover{background:rgba(242,239,233,.14)}
+  .btn.solid{background:var(--clay);border-color:var(--clay);font-weight:600}
+  .btn.solid:hover{background:var(--clay-hi)}
+  .btn:disabled{opacity:.4;cursor:default}
 
-  /* bottom panel */
-  #panel{position:fixed;bottom:0;left:0;right:0;z-index:9;padding:30px 18px 14px;
-    background:linear-gradient(0deg,rgba(20,18,16,.86),rgba(20,18,16,0));transition:opacity .3s}
-  #tabs{display:flex;margin-bottom:10px}
-  .tab{appearance:none;border:none;background:none;color:rgba(242,239,233,.5);font:inherit;
-    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
-    padding:5px 2px;margin-right:20px;cursor:pointer;border-bottom:2px solid transparent}
-  .tab.on{color:#F2EFE9;border-bottom-color:#8A3B2B}
-  .tab:focus-visible{outline:2px solid #8A3B2B;outline-offset:2px}
-  #strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
-  #strip::-webkit-scrollbar{height:3px}
-  #strip::-webkit-scrollbar-thumb{background:rgba(242,239,233,.25)}
-  .th{appearance:none;border:1px solid transparent;background:none;padding:0;cursor:pointer;
-    flex:none;width:96px;border-radius:2px;overflow:hidden;text-align:left}
-  .th .box{position:relative;height:48px;background:#221E1A;overflow:hidden}
-  .th img{display:block;width:100%;height:100%;object-fit:cover;opacity:.62;transition:opacity .2s}
-  .th em{display:block;font-style:normal;font-size:10px;line-height:1.3;padding:4px 3px 2px;
-    color:rgba(242,239,233,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .th:hover img{opacity:.9}
-  .th.on{border-color:#8A3B2B}
-  .th.on img{opacity:1}
-  .th.on em{color:#F2EFE9;font-weight:600}
-  .th:focus-visible{outline:2px solid #8A3B2B;outline-offset:1px}
+  main{flex:1;display:grid;grid-template-columns:210px 1fr 320px;min-height:0}
+  @media(max-width:1100px){main{grid-template-columns:180px 1fr 280px}}
 
-  /* instruments */
-  #ui{position:fixed;top:16px;right:22px;z-index:10;display:flex;gap:7px}
-  #ui[hidden]{display:none}
-  #ui b{align-self:center;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-    color:rgba(242,239,233,.5);font-weight:400;margin-right:4px;font-variant-numeric:tabular-nums}
-  #ui b span{color:#F2EFE9;font-weight:650}
-  #ui button{appearance:none;border:1px solid rgba(242,239,233,.22);background:rgba(20,18,16,.5);
-    color:#F2EFE9;font:inherit;font-size:11px;letter-spacing:.05em;padding:7px 12px;
-    border-radius:2px;cursor:pointer}
-  #ui button:hover{background:rgba(242,239,233,.13)}
-  #ui button:focus-visible{outline:2px solid #8A3B2B;outline-offset:2px}
-  body.bare #hdr,body.bare #panel{opacity:0;pointer-events:none}
+  /* ═══ left: views ═══ */
+  #views{border-right:1px solid var(--line);overflow-y:auto;background:var(--ink2)}
+  .vhead{padding:10px 13px;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--clay);font-weight:700;position:sticky;top:0;background:var(--ink2);
+    border-bottom:1px solid var(--line)}
+  .vrow{display:flex;align-items:center;gap:9px;padding:8px 12px;width:100%;
+    background:none;border:none;border-bottom:1px solid rgba(242,239,233,.06);text-align:left}
+  .vrow:hover{background:rgba(242,239,233,.06)}
+  .vrow.on{background:rgba(138,59,43,.26);box-shadow:inset 2px 0 0 var(--clay)}
+  .vrow img{width:44px;height:24px;object-fit:cover;border-radius:1px;flex:none;background:#000}
+  .vrow .t{flex:1;min-width:0}
+  .vrow .t b{display:block;font-size:11.5px;font-weight:600;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .vrow .t span{font-size:9.5px;color:var(--dim);letter-spacing:.05em}
+  .vrow .dots{display:flex;gap:3px;flex:none}
+  .dot{width:5px;height:5px;border-radius:50%;background:rgba(242,239,233,.18)}
+  .dot.n.ok{background:#6FA3D6}.dot.p.ok{background:#8FC08F}
+  .dot.l.ok{background:#E0A44A}.dot.s.ok{background:var(--clay-hi)}
 
-  /* loading + cover */
-  #load{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;
-    background:rgba(20,18,16,.94);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
-    color:rgba(242,239,233,.5)}
-  #cover{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:20px;padding:32px;text-align:center;background:#141210}
-  #cover .rule{width:44px;height:2px;background:#8A3B2B}
-  #cover h1{font-size:clamp(23px,5vw,34px);font-weight:650;letter-spacing:-.02em;line-height:1.2}
-  #cover p{font-size:14px;color:rgba(242,239,233,.6);max-width:34ch;line-height:1.6}
-  #cover .count{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,239,233,.4)}
-  #start{appearance:none;border:none;background:#8A3B2B;color:#F2EFE9;font:inherit;font-size:13.5px;
-    font-weight:600;padding:13px 30px;border-radius:3px;cursor:pointer}
-  #start:hover{background:#A04733}
-  #start:focus-visible{outline:2px solid #F2EFE9;outline-offset:2px}
-  .fail{color:#E0876F;font-size:13px;line-height:1.6;max-width:44ch}
+  /* ═══ centre: panorama ═══ */
+  #centre{position:relative;min-width:0;display:flex;flex-direction:column}
+  #canvas{flex:1;position:relative;overflow:hidden;background:#0C0A09}
+  #canvas canvas{display:block;cursor:grab}
+  #canvas.picking canvas{cursor:crosshair}
+  #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:16px;text-align:center;padding:30px;color:var(--dim)}
+  #empty strong{font-size:16px;color:var(--paper);font-weight:600}
+  #empty p{max-width:44ch;line-height:1.65}
+  .marks{position:absolute;inset:0;pointer-events:none}
+  .mk{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;
+    align-items:center;gap:4px;pointer-events:auto}
+  .mk .r{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:14px;font-weight:700;border:1.5px solid var(--paper);
+    background:rgba(20,18,16,.5)}
+  .mk.s .r{background:var(--clay);border-color:var(--clay)}
+  .mk .n{font-size:9.5px;background:rgba(20,18,16,.78);padding:2px 6px;border-radius:2px;
+    white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+  .mk .x{position:absolute;top:-6px;right:-8px;width:16px;height:16px;border-radius:50%;
+    background:#B3402C;border:none;color:#fff;font-size:11px;line-height:1;padding:0}
 
-  @media(max-width:560px){
-    .pj{font-size:16px}
-    #ui{right:14px;top:14px}
-    #ui b{display:none}
-    .th{width:82px}
-  }
-  @media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+  #modebar{display:flex;align-items:center;gap:7px;padding:9px 13px;flex:none;
+    border-top:1px solid var(--line);background:var(--ink2)}
+  #modebar .sp{flex:1}
+  .mode{border:1px solid var(--line);background:none;padding:7px 13px;border-radius:2px;
+    font-size:11.5px}
+  .mode:hover{background:rgba(242,239,233,.1)}
+  .mode.on{background:var(--clay);border-color:var(--clay);font-weight:600}
+  .read{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .read b{color:var(--paper)}
+
+  /* ═══ right: inspector ═══ */
+  #insp{border-left:1px solid var(--line);overflow-y:auto;background:var(--ink2);
+    padding:14px 15px 40px}
+  .sec{margin-bottom:20px}
+  .sec h3{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--clay);
+    font-weight:700;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  label{display:block;font-size:10.5px;letter-spacing:.05em;color:var(--dim);
+    margin:9px 0 4px;text-transform:uppercase}
+  input[type=text],select,textarea{width:100%;background:#0E0C0B;border:1px solid var(--line);
+    border-radius:2px;padding:7px 9px;font-size:12.5px}
+  input:focus,select:focus,textarea:focus{outline:1px solid var(--clay);border-color:var(--clay)}
+  textarea{resize:vertical;min-height:84px;line-height:1.6;font-size:12px}
+  input[type=range]{width:100%;accent-color:var(--clay);margin-top:5px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .hint{font-size:11px;color:var(--dim);line-height:1.55;margin-top:7px}
+
+  .item{display:flex;align-items:center;gap:8px;padding:6px 0;
+    border-bottom:1px solid rgba(242,239,233,.07);font-size:11.5px}
+  .item:last-child{border-bottom:none}
+  .item .g{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .a{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
+  .item button{border:none;background:none;color:var(--dim);padding:2px 5px;border-radius:2px}
+  .item button:hover{background:rgba(179,64,44,.3);color:#fff}
+  .none{font-size:11.5px;color:var(--dim);font-style:italic;padding:4px 0}
+
+  /* plan */
+  #planBox{position:relative;line-height:0;border:1px solid var(--line);border-radius:2px;
+    overflow:hidden;cursor:crosshair;margin-top:8px}
+  #planImg{width:100%;display:block}
+  .ppin{position:absolute;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
+    background:rgba(242,239,233,.55);border:1.5px solid rgba(20,18,16,.6);pointer-events:none}
+  .ppin.on{background:var(--clay);border-color:var(--paper);width:16px;height:16px;
+    margin:-8px 0 0 -8px}
+  #pcone{position:absolute;width:52px;height:52px;margin-left:-26px;margin-top:-52px;
+    transform-origin:50% 100%;pointer-events:none;display:none;border-radius:50%;
+    background:conic-gradient(from -26deg,rgba(138,59,43,0),rgba(138,59,43,.55) 12deg,
+      rgba(138,59,43,.55) 40deg,rgba(138,59,43,0) 52deg)}
+
+  /* drop zone */
+  #drop{position:fixed;inset:0;z-index:90;background:rgba(20,18,16,.93);display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px;
+    border:2px dashed var(--clay)}
+  body.dragging #drop{display:flex}
+  #drop strong{font-size:20px}
+  #drop p{color:var(--dim)}
+
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:120;
+    background:var(--clay);padding:10px 18px;border-radius:2px;font-size:12.5px;
+    font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s}
+  #toast.on{opacity:1}
 </style>
 </head>
 <body>
 
-<div id="hdr">
-  <div class="fm">FSM Jayapena <b>&amp;</b> Co.</div>
-  <div class="pj" id="pj"></div>
-  <div class="vw"><i id="gp"></i><span id="vw"></span></div>
-</div>
+<header>
+  <div class="brand">FSM Jayapena <b>&amp;</b> Co.<em>Tour Studio</em></div>
+  <div class="sp"></div>
+  <button class="btn" id="bImport">Import views.js</button>
+  <button class="btn" id="bPano">Add panoramas</button>
+  <button class="btn" id="bPlan">Floor plan</button>
+  <button class="btn solid" id="bExport" disabled>Export views.js</button>
+  <input type="file" id="fImport" accept=".js" hidden>
+  <input type="file" id="fPano" accept="image/*" multiple hidden>
+  <input type="file" id="fPlan" accept="image/*" hidden>
+</header>
 
-<div id="ui" hidden>
-  <b>Lens <span id="ln">50mm</span></b>
-  <button id="rs">Reset</button>
-  <button id="hd">Hide panel</button>
-  <button id="fs">Full screen</button>
-</div>
+<main>
+  <div id="views"><div class="vhead">Views</div><div id="vlist"></div></div>
 
-<div id="panel"><div id="tabs"></div><div id="strip"></div></div>
-<div id="load">Loading view</div>
+  <div id="centre">
+    <div id="canvas">
+      <div class="marks" id="marks"></div>
+      <div id="empty">
+        <strong>Drop your panoramas here</strong>
+        <p>Every view is created from its filename. Then drop the floor plan,
+           set each view's north, and click the doorways and materials.</p>
+        <p style="font-size:11.5px">Already started? Import your existing views.js
+           and carry on where you left off.</p>
+      </div>
+    </div>
+    <div id="modebar">
+      <button class="mode on" id="mLook">Look around</button>
+      <button class="mode" id="mLink">Place doorway</button>
+      <button class="mode" id="mSpot">Place material</button>
+      <div class="sp"></div>
+      <div class="read">yaw <b id="rYaw">0</b>° &nbsp; pitch <b id="rPitch">0</b>°</div>
+    </div>
+  </div>
 
-<div id="cover">
-  <div class="rule"></div>
-  <h1 id="ch">360° Tour</h1>
-  <p id="cp"></p>
-  <div class="count" id="cc"></div>
-  <button id="start">Enter the tour</button>
-  <div class="fail" id="cf"></div>
-</div>
+  <div id="insp"></div>
+</main>
 
-<script src="views.js"></script>
+<div id="drop"><strong>Release to add</strong><p>Panoramas, floor plan, or a views.js file</p></div>
+<div id="toast"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
 "use strict";
 var $ = function(id){ return document.getElementById(id); };
+var D2R = Math.PI/180, R2D = 180/Math.PI;
 
-var CFG = window.TOUR || {};
-var V   = (CFG.views || []).slice();
+/* ═══════════════════════════════════════════════════════════
+   THE MATERIAL LIBRARY — Mentaki Mount Village, Rev B
+   Edit here for a different project, or leave it and simply
+   don't place spots you don't need.
+   ═══════════════════════════════════════════════════════════ */
+var MATERIALS = {
+"BR-01":{title:"Reclaimed Red Face Brick",zone:"Dining Hall",desc:"Clay face brick, natural red, raked joint. Exposed internal feature wall.",appears:"3D-IN-01, 02, 03, 05",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"Phomi Flexible Clay Brick, R Series",link:"keekiong.com.my/aluminium/",status:"Verify"},
+"TB-01":{title:"Dark Stained Timber Beam",zone:"Dining Hall",desc:"Solid timber coffered ceiling beam and lining, dark walnut stain, matt.",appears:"3D-IN-01, 02, 05",supplier:"Kiong Sing (Sabah) Sdn Bhd",loc:"Mile 7 Jln Tuaran, Inanam, KK",contact:"088-428 888",ref:"Sawn hardwood — beam & ceiling lining, stained on site",link:"kiongsingsabah.com",status:"Verify"},
+"TB-02":{title:"Natural Pine Board Wall",zone:"Dining Hall",desc:"Horizontal pine board cladding, clear seal, natural tone.",appears:"3D-IN-01, 02",supplier:"Kiong Sing (Sabah) Sdn Bhd",loc:"Mile 7 Jln Tuaran, Inanam, KK",contact:"088-428 888",ref:"Pine board wall cladding — confirm profile & grade",link:"kiongsingsabah.com",status:"Verify"},
+"FL-01":{title:"Polished Concrete Floor",zone:"Dining Hall",desc:"Power-float concrete, mechanical polish, light grey, sealed.",appears:"3D-IN-01 to 05",supplier:"Main contractor — site works",loc:"Kundasang / Ranau",contact:"To be appointed",ref:"Site-applied. No product supply.",status:"N/A"},
+"ST-01":{title:"Grey Stacked Stone",zone:"Dining Hall",desc:"Split-face stone cladding, grey basalt tone, dry-stack pattern.",appears:"3D-IN-03, 04, 05",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"Phomi Flexible Clay Stone Series",link:"keekiong.com.my/aluminium/",status:"Verify"},
+"LT-01":{title:"Surface Downlight",zone:"Dining Hall",desc:"Round surface-mounted downlight, matt black housing, warm 3000K.",appears:"3D-IN-01, 05",supplier:"HAG Store Sdn Bhd",loc:"Taman Suria, Penampang",contact:"088-717 755 / WA 010-237 1555",ref:"HAG 303 / 505 COB Surface Downlight 3W-5W, 3000K — RM13.90",link:"hag-store.com/product-category/lighting/",status:"Confirmed"},
+"LT-02":{title:"Caged Lantern Sconce",zone:"Dining Hall",desc:"Wall-mounted caged lantern, black frame, amber lamp.",appears:"3D-IN-01, 02, 03",supplier:"HAG Store Sdn Bhd",loc:"Taman Suria, Penampang",contact:"088-717 755 / WA 010-237 1555",ref:"Caged lantern wall sconce — confirm SKU in store",link:"hag-store.com/product-category/lighting/",status:"Verify"},
+"FN-01":{title:"Wishbone Dining Chair",zone:"Dining Hall",desc:"Solid timber frame, woven paper-cord seat, natural finish.",appears:"3D-IN-01 to 05",supplier:"Riivo & Co (KK Home)",loc:"Pavilion Bundusan, Kota Kinabalu",contact:"088-739 228",ref:"Hospitality dining chair, make-to-order",link:"riivohome.com",status:"Verify"},
+"FL-02":{title:"Timber Deck Flooring",zone:"Glass Pavilion",desc:"Hardwood strip flooring, deep red-brown stain, gloss seal.",appears:"3D-IN-06, 07, 08",supplier:"Elegant Floor",loc:"Lintas Jaya Uptownship, Kota Kinabalu",contact:"088-720 378 / WA 016-844 2233",ref:"Solid hardwood / engineered strip flooring — confirm species & size",link:"elegantfloorkk.com",status:"Confirmed"},
+"GL-01":{title:"Black Steel Frame Glazing",zone:"Glass Pavilion",desc:"Slim steel-look framing, matt black, clear double glazing.",appears:"3D-IN-06, 07, 08",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"Performance Series window/door, 1.6mm frame, matte black powder coat",link:"keekiong.com.my/aluminium/product/aluminium-window-door/",status:"Confirmed"},
+"LT-03":{title:"Black Track Spotlight",zone:"Glass Pavilion",desc:"Surface track system, adjustable spot head, matt black.",appears:"3D-IN-06, 07, 08",supplier:"HAG Store Sdn Bhd",loc:"Taman Suria, Penampang",contact:"088-717 755 / WA 010-237 1555",ref:"Track Light & Rail range — confirm matt black SKU",link:"hag-store.com/product-category/lighting/",status:"Verify"},
+"FN-02":{title:"Upholstered Lounge Chair",zone:"Glass Pavilion",desc:"Tub-form lounge chair, textured taupe fabric, timber legs.",appears:"3D-IN-06, 07, 08",supplier:"Riivo & Co (KK Home)",loc:"Pavilion Bundusan, Kota Kinabalu",contact:"088-739 228",ref:"Upholstered lounge/tub chair, hospitality grade, make-to-order",link:"riivohome.com",status:"Verify"},
+"RG-01":{title:"Plain Wool Area Rug",zone:"Glass Pavilion",desc:"Flat-weave rug, off-white, low pile.",appears:"3D-IN-06, 07, 08",supplier:"New Tech Furniture Sdn Bhd",loc:"8 outlets across Sabah",contact:"See website",ref:"Plain flat-weave area rug — confirm size & colour",link:"newtechfurniture.com.my",status:"Verify"},
+"TL-01":{title:"Vertical Ceramic Wall Tile",zone:"Washroom",desc:"Stack-bond vertical format tile, warm grey, matt glaze.",appears:"3D-IN-12, 13, 14",supplier:"Feruni Ceramiche Retail Store KK",loc:"Nountun Ind. Estate, Mile 5.5 Jln Tuaran, KK",contact:"012-661 0339",ref:"Stone X, 300x600mm glazed porcelain 9mm, matt — Grigio / Light Grey",link:"feruni.com/product/stone-x/",status:"Confirmed"},
+"TB-03":{title:"Fluted Timber Panel",zone:"Washroom",desc:"Vertical fluted timber batten panel, medium brown stain.",appears:"3D-IN-12, 13, 14",supplier:"GRM Biowood Sabah",loc:"Inanam Township, Jln Tuaran Bypass, KK",contact:"088-427 488",ref:"Biowood Louver 150x35 / Wall Panel — WPC, waterproof, anti-termite",link:"sabah-biowood.my",status:"Confirmed"},
+"FL-03":{title:"Terrazzo Floor Finish",zone:"Washroom",desc:"Cast terrazzo, warm aggregate, ground and sealed.",appears:"3D-IN-11 to 14",supplier:"GNG Tiles / Apex Ceramics KK",loc:"Kolombong KK / Penampang",contact:"088-388 150 / 088-711 355",ref:"Terrazzo N06, 300x600mm terrazzo tile",link:"terracotta.com.my/product/terrazzo-n06-size-300-x-600m/",status:"Confirmed"},
+"SW-01":{title:"Counter-Top Basin & Vanity",zone:"Washroom",desc:"Rectangular counter-top basin, timber vanity top, open shelf.",appears:"3D-IN-12, 13, 14",supplier:"Kekalboleh Sdn Bhd",loc:"Mile 5.5 Jln Kolombong, Kota Kinabalu",contact:"088-385 555 / 013-886 7570",ref:"Counter-top rectangular basin — LESSO / ViP / ANA range",link:"kekalboleh.com/product-category/sanitary-ware/",status:"Confirmed"},
+"SW-02":{title:"WC & Hand Bidet Spray",zone:"Washroom",desc:"Close-coupled WC, soft-close seat, chrome hand spray.",appears:"3D-IN-12, 14",supplier:"Kekalboleh Sdn Bhd",loc:"Mile 5.5 Jln Kolombong, Kota Kinabalu",contact:"088-385 555 / 013-886 7570",ref:"Close-coupled WC + hand bidet spray. Alt: Fung Hing (TOTO Sabah) 088-216 805",link:"kekalboleh.com/product-category/sanitary-ware/",status:"Confirmed"},
+"MR-01":{title:"Round Strap Mirror",zone:"Washroom",desc:"Circular mirror, white leather strap hanger.",appears:"3D-IN-13",supplier:"Riivo & Co (KK Home)",loc:"Pavilion Bundusan, Kota Kinabalu",contact:"088-739 228",ref:"Round strap mirror — confirm diameter & strap finish",link:"riivohome.com",status:"Verify"},
+"TB-04":{title:"CNC Herringbone Screen",zone:"Surau",desc:"Laser/CNC-cut timber panel, herringbone motif, natural oak.",appears:"3D-IN-15, 16",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"CNC screen — fabricate in aluminium, matte black powder coat in-house",link:"keekiong.com.my/aluminium/",status:"Verify"},
+"GR-01":{title:"Carved Screen Door Insert",zone:"Surau",desc:"Geometric CNC screen insert to timber door leaf, black finish.",appears:"3D-IN-16",supplier:"Laser Cut Sabah",loc:"Papar, Sabah",contact:"See Facebook page",ref:"CNC / laser-cut screen insert to door leaf",link:"facebook.com/LaserCutSabah/",status:"Verify"},
+"FL-04":{title:"Herringbone Timber Floor",zone:"Surau",desc:"Engineered timber, herringbone lay, light natural tone.",appears:"3D-IN-15, 16",supplier:"Elegant Floor",loc:"Lintas Jaya Uptownship, Kota Kinabalu",contact:"088-720 378 / WA 016-844 2233",ref:"Engineered timber, herringbone lay — confirm block size",link:"elegantfloorkk.com",status:"Confirmed"},
+"TZ-01":{title:"Terrazzo Ablution Bench",zone:"Surau",desc:"Cast terrazzo bench and step, exposed aggregate, sealed.",appears:"3D-IN-16",supplier:"GNG Tiles / Apex Ceramics KK",loc:"Kolombong KK / Penampang",contact:"088-388 150 / 088-711 355",ref:"Terrazzo tile to bench & step. No in-situ terrazzo contractor in Sabah.",link:"terracotta.com.my/terrazzo-tile/",status:"Confirmed"},
+"SJ-01":{title:"Prayer Mat (Sejadah)",zone:"Surau",desc:"Loose prayer mats, traditional red motif. Supplied loose by operator.",appears:"3D-IN-15",supplier:"Supplied loose by operator",ref:"Not a construction package item.",status:"N/A"},
+"WL-01":{title:"Textured Plaster Wall",zone:"Surau",desc:"Fine sand-texture render, off-white, matt emulsion.",appears:"3D-IN-15, 16",supplier:"Main contractor — wet trades",loc:"Kundasang / Ranau",contact:"To be appointed",ref:"Site-applied. No product supply.",status:"N/A"},
+"BR-02":{title:"External Face Brick",zone:"Exterior",desc:"Clay face brick to external walls, natural red, flush joint.",appears:"3D-EX-01 to 08",supplier:"Hap Seng Clay Products Sdn Bhd",loc:"Plaza Shell, Kota Kinabalu",contact:"088-355 978",ref:"Common Solid Brick — note: common brick, not a facing-brick range",link:"hapseng.com.my/en/our-business/building-materials.html",status:"Confirmed"},
+"AL-01":{title:"Black Aluminium Frame",zone:"Exterior",desc:"Powder-coated aluminium window and door frames, matt black.",appears:"3D-EX-01 to 08",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"Performance Series aluminium, matte black powder coat confirmed",link:"keekiong.com.my/aluminium/product/aluminium-window-door/",status:"Confirmed"},
+"RF-01":{title:"Metal Roof Sheet",zone:"Exterior",desc:"Low-pitch metal roof sheeting, dark grey, concealed fixing.",appears:"3D-EX-04, 07, 08",supplier:"Colform Group Berhad",loc:"KKIP Timur, Tuaran / Sandakan",contact:"088-472 221",ref:"LYSAGHT KLIP-LOK OPTIMA concealed-fix, 980mm cover, COLORBOND matt dark grey",link:"lysaghtasean.com/my/en/products-and-solutions/roofing-and-walling/",status:"Confirmed"},
+"TB-05":{title:"Timber Pergola Structure",zone:"Exterior",desc:"Solid timber pergola beams and rafters, clear exterior seal.",appears:"3D-EX-02, 07",supplier:"Canaan Trading (S) Sdn Bhd",loc:"Pusat Industri Kolombong, Kota Kinabalu",contact:"088-388 037 / 016-582 3333",ref:"Structural hardwood for pergola — confirm species & section",link:"canaantrading.my/products/",status:"Verify"},
+"PV-01":{title:"Concrete Apron & Walkway",zone:"Exterior",desc:"Broom-finish concrete paving to entry apron and walkway.",appears:"3D-EX-01, 02, 06",supplier:"Main contractor — site works",loc:"Kundasang / Ranau",contact:"To be appointed",ref:"Site-cast. No product supply.",status:"N/A"},
+"BL-01":{title:"Stainless Cable Balustrade",zone:"Exterior",desc:"Horizontal stainless cable balustrade with metal posts, roof deck.",appears:"3D-EX-07, 08",supplier:"Kee Kiong A 2 Z Sdn Bhd",loc:"Inanam, Kota Kinabalu",contact:"WhatsApp 011-6498 3218",ref:"Stainless cable balustrade — fabricate to detail",link:"keekiong.com.my/aluminium/",status:"Verify"}
+};
 
-/* cover */
-$('pj').textContent = CFG.project || '360° Tour';
-$('ch').textContent = CFG.project || '360° Tour';
-$('cp').textContent = CFG.note || 'Drag to look around. Pinch or scroll to zoom.';
-$('cc').textContent = V.length + ' views — 360°';
-document.title = (CFG.project || '360') + ' — 360° Tour';
+/* ═══ state ═══ */
+var P = {
+  project:"Mentaki Mount Village",
+  client:"Disediakan untuk Reka Jadi Sdn Bhd — Tuan Yahaya",
+  cover:"MMV_Cover_Page.png",
+  logo:"",
+  audio:"",
+  planImage:"plan_v2.jpg", planZoom:14, planSize:"300px", planRotation:0,
+  info:"# Mentaki Mount Village\nA highland cafe development in Kundasang, Ranau, Sabah.\n# Using this tour\nDrag to look around. Tap the arrows to walk between spaces, and the markers for material details."
+};
+var views = [], cur = -1, mode = 'look', planURL = null;
 
-if(!V.length){
-  $('cf').textContent = 'No views are listed in views.js. Open that file and add an entry for each panorama.';
-  $('start').disabled = true;
-}
-if(!window.THREE){
-  $('cf').textContent = 'The 3D library did not load. This page needs an internet connection the first time it opens.';
-  $('start').disabled = true;
-}
+/* ═══ three.js ═══ */
+var scene, cam, renderer, mesh, ray, lon=0, lat=0, fov=72, drag=false, moved=0, px=0,py=0,pl=0,pt=0;
 
-/* group order: as listed, Exterior before Interior */
-var groups = [];
-V.forEach(function(v){ if(groups.indexOf(v.group) < 0) groups.push(v.group); });
-var active = groups[0];
-var cur = -1, cache = {};
-
-/* scene */
-var lon = 0, lat = 0, fov = 72, drag = false, px = 0, py = 0, pl = 0, pt = 0;
-var sc, cam, rn, cv, mat;
-
-function initScene(){
-  sc  = new THREE.Scene();
-  cam = new THREE.PerspectiveCamera(fov, innerWidth/innerHeight, 0.1, 1100);
-  rn  = new THREE.WebGLRenderer({antialias:true});
-  rn.setPixelRatio(Math.min(devicePixelRatio, 2));
-  rn.setSize(innerWidth, innerHeight);
-  document.body.appendChild(rn.domElement);
-  cv = rn.domElement; cv.style.cursor = 'grab';
-
-  var g = new THREE.SphereGeometry(500, 64, 40); g.scale(-1,1,1);
-  mat = new THREE.MeshBasicMaterial();
-  sc.add(new THREE.Mesh(g, mat));
-
-  bind();
+function initGL(){
+  var host = $('canvas');
+  scene = new THREE.Scene();
+  cam = new THREE.PerspectiveCamera(fov, host.clientWidth/host.clientHeight, .1, 1100);
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(host.clientWidth, host.clientHeight);
+  host.insertBefore(renderer.domElement, host.firstChild);
+  var g = new THREE.SphereGeometry(500,64,40); g.scale(-1,1,1);
+  mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:0x1a1715}));
+  scene.add(mesh);
+  ray = new THREE.Raycaster();
+  bind(host);
+  addEventListener('resize', function(){
+    cam.aspect = host.clientWidth/host.clientHeight; cam.updateProjectionMatrix();
+    renderer.setSize(host.clientWidth, host.clientHeight);
+  });
   loop();
 }
 
-/* tabs + thumbnails */
-function paintTabs(){
-  var box = $('tabs'); box.innerHTML = '';
-  groups.forEach(function(gr){
-    var b = document.createElement('button');
-    b.className = 'tab' + (gr === active ? ' on' : '');
-    b.textContent = gr;
-    b.onclick = function(){ active = gr; paintTabs(); paintStrip(); };
-    box.appendChild(b);
-  });
-}
-function paintStrip(){
-  var box = $('strip'); box.innerHTML = '';
-  V.forEach(function(v, i){
-    if(v.group !== active) return;
-    var b = document.createElement('button');
-    b.className = 'th' + (i === cur ? ' on' : '');
-    b.innerHTML = '<div class="box"><img loading="lazy" src="' +
-      (v.thumb || v.file) + '" alt=""></div><em>' + v.name + '</em>';
-    b.onclick = function(){ show(i); };
-    box.appendChild(b);
-  });
-}
-
-function show(i){
-  if(i === cur) return;
-  cur = i;
-  $('vw').textContent = V[i].name;
-  $('gp').textContent = V[i].group;
-  lon = V[i].heading || 0; lat = 0; fov = 72;
-  paintStrip();
-
-  if(cache[i]){ mat.map = cache[i]; mat.needsUpdate = true; return; }
-  $('load').style.display = 'flex';
-  new THREE.TextureLoader().load(V[i].file,
-    function(t){
-      t.minFilter = THREE.LinearFilter;
-      if(rn.capabilities.getMaxAnisotropy) t.anisotropy = rn.capabilities.getMaxAnisotropy();
-      cache[i] = t; mat.map = t; mat.needsUpdate = true;
-      $('load').style.display = 'none';
-      $('ui').hidden = false;
-    },
-    undefined,
-    function(){
-      $('load').innerHTML = 'Could not load ' + V[i].file;
-    }
-  );
-}
-
-$('start').onclick = function(){
-  $('cover').style.display = 'none';
-  initScene(); paintTabs(); show(0);
-};
-
-/* input */
-function bind(){
-  addEventListener('resize', function(){
-    cam.aspect = innerWidth/innerHeight;
-    cam.updateProjectionMatrix();
-    rn.setSize(innerWidth, innerHeight);
-  });
+function bind(host){
+  var cv = renderer.domElement;
   cv.addEventListener('pointerdown', function(e){
-    drag = true; cv.style.cursor = 'grabbing';
-    px = e.clientX; py = e.clientY; pl = lon; pt = lat;
-    cv.setPointerCapture(e.pointerId);
+    drag=true; moved=0; cv.style.cursor='grabbing';
+    px=e.clientX; py=e.clientY; pl=lon; pt=lat; cv.setPointerCapture(e.pointerId);
   });
   cv.addEventListener('pointermove', function(e){
     if(!drag) return;
-    var k = fov/72;
-    lon = pl - (e.clientX - px) * 0.16 * k;
-    lat = pt + (e.clientY - py) * 0.16 * k;
+    moved += Math.abs(e.clientX-px)+Math.abs(e.clientY-py);
+    var k=fov/72;
+    lon = pl-(e.clientX-px)*.16*k; lat = pt+(e.clientY-py)*.16*k;
   });
   ['pointerup','pointercancel'].forEach(function(ev){
-    cv.addEventListener(ev, function(){ drag = false; cv.style.cursor = 'grab'; });
+    cv.addEventListener(ev, function(){ drag=false; cv.style.cursor='grab'; });
   });
-  cv.addEventListener('wheel', function(e){
-    e.preventDefault();
-    fov = Math.max(22, Math.min(95, fov + e.deltaY * 0.045));
-  }, {passive:false});
-
-  var pz = null;
-  function dd(e){ var a=e.touches[0], b=e.touches[1];
-    return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
-  cv.addEventListener('touchstart', function(e){
-    if(e.touches.length === 2) pz = {d:dd(e), f:fov};
-  }, {passive:true});
-  cv.addEventListener('touchmove', function(e){
-    if(e.touches.length === 2 && pz){
-      e.preventDefault(); drag = false;
-      fov = Math.max(22, Math.min(95, pz.f * pz.d / dd(e)));
-    }
-  }, {passive:false});
-  cv.addEventListener('touchend', function(){ pz = null; }, {passive:true});
-
-  addEventListener('keydown', function(e){
-    var s = fov/12;
-    if(e.key==='ArrowLeft') lon -= s;
-    else if(e.key==='ArrowRight') lon += s;
-    else if(e.key==='ArrowUp') lat += s;
-    else if(e.key==='ArrowDown') lat -= s;
-    else if(e.key==='+'||e.key==='=') fov = Math.max(22, fov-4);
-    else if(e.key==='-') fov = Math.min(95, fov+4);
-    else return;
-    e.preventDefault();
+  cv.addEventListener('wheel', function(e){ e.preventDefault();
+    fov=Math.max(24,Math.min(96,fov+e.deltaY*.045)); }, {passive:false});
+  cv.addEventListener('click', function(e){
+    if(mode==='look' || moved>6 || cur<0) return;
+    var r = cv.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,
+                                        -((e.clientY-r.top)/r.height)*2+1), cam);
+    var d = ray.ray.direction;
+    var pitch = Math.asin(d.y)*R2D;
+    var yaw = Math.atan2(d.z,d.x)*R2D; if(yaw<0) yaw+=360;
+    if(mode==='link') addLink(yaw, pitch); else addSpot(yaw, pitch);
   });
-
-  $('rs').onclick = function(){ lon = V[cur].heading || 0; lat = 0; fov = 72; };
-  $('fs').onclick = function(){
-    document.fullscreenElement ? document.exitFullscreen()
-                               : document.documentElement.requestFullscreen();
-  };
-  $('hd').onclick = function(){
-    var off = document.body.classList.toggle('bare');
-    this.textContent = off ? 'Show panel' : 'Hide panel';
-  };
 }
 
 function loop(){
   requestAnimationFrame(loop);
   lat = Math.max(-85, Math.min(85, lat));
-  var p = THREE.MathUtils.degToRad(90 - lat), t = THREE.MathUtils.degToRad(lon);
-  cam.lookAt(500*Math.sin(p)*Math.cos(t), 500*Math.cos(p), 500*Math.sin(p)*Math.sin(t));
-  cam.fov = fov; cam.updateProjectionMatrix();
-  rn.render(sc, cam);
-  $('ln').textContent = Math.round(12/Math.tan(THREE.MathUtils.degToRad(fov)/2)) + 'mm';
+  var phi=(90-lat)*D2R, th=lon*D2R;
+  cam.lookAt(500*Math.sin(phi)*Math.cos(th), 500*Math.cos(phi), 500*Math.sin(phi)*Math.sin(th));
+  cam.fov=fov; cam.updateProjectionMatrix();
+  renderer.render(scene,cam);
+  var h=((lon%360)+360)%360;
+  $('rYaw').textContent = h.toFixed(1); $('rPitch').textContent = lat.toFixed(1);
+  placeMarks(); turnCone(h);
 }
+
+/* ═══ filename → view ═══ */
+function parseName(f){
+  var n = f.replace(/\.[^.]+$/,'');
+  var group = /(^|[-_])ext([-_]|$)/i.test(n) ? 'Exterior' : 'Interior';
+  var t = n.replace(/^mmv[-_]/i,'').replace(/^(ext|int)[-_]/i,'').replace(/^\d+[-_]/,'');
+  t = t.replace(/[-_]+/g,' ').trim().replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  t = t.replace(/\bCnc\b/,'CNC').replace(/\bWc\b/,'WC');
+  var id = n.replace(/^mmv[-_]/i,'').replace(/^(ext|int)[-_]/i,'')
+            .replace(/^\d+[-_]/,'').replace(/[^a-z0-9]+/gi,'').toLowerCase() || ('v'+(views.length+1));
+  return { id:id, name:t||'View', group:group };
+}
+
+function addPanoramas(files){
+  var added = 0;
+  Array.prototype.forEach.call(files, function(f){
+    if(!/^image\//.test(f.type)) return;
+    if(views.some(function(v){ return v.file===f.name; })) return;
+    var meta = parseName(f.name);
+    while(views.some(function(v){ return v.id===meta.id; })) meta.id += '2';
+    views.push({ id:meta.id, file:f.name, name:meta.name, group:meta.group,
+                 north:0, pin:null, links:[], spots:[], url:URL.createObjectURL(f) });
+    added++;
+  });
+  views.sort(function(a,b){
+    if(a.group!==b.group) return a.group==='Exterior' ? -1 : 1;
+    return a.file.localeCompare(b.file);
+  });
+  if(added){ $('empty').style.display='none'; $('bExport').disabled=false;
+    drawList(); if(cur<0) select(0); toast(added+' view'+(added>1?'s':'')+' added'); }
+}
+
+/* ═══ list ═══ */
+function drawList(){
+  var box = $('vlist'); box.innerHTML='';
+  views.forEach(function(v,i){
+    var b = document.createElement('button');
+    b.className = 'vrow'+(i===cur?' on':'');
+    b.innerHTML = '<img src="'+(v.url||'')+'" alt="">' +
+      '<div class="t"><b>'+v.name+'</b><span>'+v.group+'</span></div>' +
+      '<div class="dots">' +
+        '<i class="dot n'+(v.north?' ok':'')+'" title="north"></i>' +
+        '<i class="dot p'+(v.pin?' ok':'')+'" title="pin"></i>' +
+        '<i class="dot l'+(v.links.length?' ok':'')+'" title="links"></i>' +
+        '<i class="dot s'+(v.spots.length?' ok':'')+'" title="materials"></i>' +
+      '</div>';
+    b.onclick = function(){ select(i); };
+    box.appendChild(b);
+  });
+}
+
+function select(i){
+  cur = i; var v = views[i];
+  lon = 0; lat = 0; fov = 72;
+  if(v.url){
+    new THREE.TextureLoader().load(v.url, function(t){
+      t.minFilter = THREE.LinearFilter;
+      if(renderer.capabilities.getMaxAnisotropy) t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      mesh.material.map = t; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true;
+    });
+  }
+  applyNorth();
+  drawList(); inspector();
+}
+
+function applyNorth(){
+  if(cur<0 || !mesh) return;
+  mesh.rotation.y = -(views[cur].north||0)*D2R;
+}
+
+/* ═══ markers over the panorama ═══ */
+function placeMarks(){
+  var box = $('marks');
+  if(cur<0){ box.innerHTML=''; return; }
+  var v = views[cur], all = v.links.map(function(l,i){ return {k:'l',i:i,d:l}; })
+                       .concat(v.spots.map(function(s,i){ return {k:'s',i:i,d:s}; }));
+  if(box.children.length !== all.length){
+    box.innerHTML='';
+    all.forEach(function(m){
+      var t = views.find(function(x){ return x.id===m.d.to; });
+      var name = m.k==='l' ? (t?t.name:m.d.to) : ((MATERIALS[m.d.mat]||{}).title || m.d.mat);
+      var el = document.createElement('div');
+      el.className = 'mk '+m.k;
+      el.innerHTML = '<button class="x">×</button><span class="r">'+(m.k==='l'?'›':'i')+
+                     '</span><span class="n">'+name+'</span>';
+      el.querySelector('.x').onclick = function(ev){
+        ev.stopPropagation();
+        if(m.k==='l') v.links.splice(m.i,1); else v.spots.splice(m.i,1);
+        $('marks').innerHTML=''; drawList(); inspector();
+      };
+      box.appendChild(el);
+    });
+  }
+  var host = $('canvas'), W = host.clientWidth, H = host.clientHeight;
+  all.forEach(function(m, n){
+    var el = box.children[n]; if(!el) return;
+    var y = (m.d.yaw||0)*D2R, p = (m.d.pitch||0)*D2R;
+    var camPitch = lat*D2R, camYaw = lon*D2R;
+    var cosA = Math.sin(p)*Math.sin(camPitch)+Math.cos(p)*Math.cos(camPitch)*Math.cos(y-camYaw);
+    if(cosA < .12){ el.style.opacity='0'; el.style.pointerEvents='none'; return; }
+    var vec = new THREE.Vector3(400*Math.cos(p)*Math.cos(y), 400*Math.sin(p),
+                                400*Math.cos(p)*Math.sin(y));
+    vec.project(cam);
+    el.style.opacity='1'; el.style.pointerEvents='auto';
+    el.style.left = ((vec.x+1)/2*W)+'px'; el.style.top = ((-vec.y+1)/2*H)+'px';
+  });
+}
+
+function addLink(yaw,pitch){
+  var others = views.filter(function(v,i){ return i!==cur; });
+  if(!others.length){ toast('Add another panorama first'); return; }
+  var to = prompt('Walk to which view?\n\n' +
+    others.map(function(v,i){ return (i+1)+'. '+v.name; }).join('\n'), '1');
+  var n = parseInt(to,10);
+  if(!n || n<1 || n>others.length) return;
+  views[cur].links.push({ to:others[n-1].id, yaw:+yaw.toFixed(1), pitch:+pitch.toFixed(1) });
+  $('marks').innerHTML=''; drawList(); inspector(); toast('Doorway to '+others[n-1].name);
+}
+
+function addSpot(yaw,pitch){
+  var sel = $('matPick');
+  var code = sel ? sel.value : '';
+  if(!code){ toast('Choose a material on the right first'); return; }
+  views[cur].spots.push({ yaw:+yaw.toFixed(1), pitch:+pitch.toFixed(1), mat:code });
+  $('marks').innerHTML=''; drawList(); inspector(); toast(MATERIALS[code].title+' placed');
+}
+
+/* ═══ inspector ═══ */
+function inspector(){
+  var box = $('insp');
+  if(cur<0){
+    box.innerHTML = '<div class="sec"><h3>Project</h3>' + projectFields() + '</div>';
+    wireProject(); return;
+  }
+  var v = views[cur];
+  var zones = {};
+  Object.keys(MATERIALS).forEach(function(c){
+    (zones[MATERIALS[c].zone] = zones[MATERIALS[c].zone] || []).push(c);
+  });
+
+  box.innerHTML =
+    '<div class="sec"><h3>'+v.name+'</h3>' +
+      '<label>Name shown to the client</label><input type="text" id="iName" value="'+esc(v.name)+'">' +
+      '<div class="two"><div><label>Group</label>' +
+        '<select id="iGroup"><option'+(v.group==='Exterior'?' selected':'')+'>Exterior</option>' +
+        '<option'+(v.group==='Interior'?' selected':'')+'>Interior</option></select></div>' +
+        '<div><label>Id</label><input type="text" id="iId" value="'+esc(v.id)+'"></div></div>' +
+      '<div class="hint">File: '+v.file+'</div>' +
+    '</div>' +
+
+    '<div class="sec"><h3>North</h3>' +
+      '<div class="hint">Turn to face something you can find on the plan, then drag until the cone agrees.</div>' +
+      '<input type="range" id="iNorth" min="0" max="359" step="1" value="'+(v.north||0)+'">' +
+      '<div class="hint">north <b id="nVal">'+(v.north||0)+'</b>°' +
+        ' &nbsp;·&nbsp; <a href="#" id="nHere" style="color:#C58A79">set from where I am looking</a></div>' +
+    '</div>' +
+
+    '<div class="sec"><h3>Position on plan</h3>' +
+      (planURL ? '<div id="planBox"><img id="planImg" src="'+planURL+'" alt="">' +
+                 '<div id="pcone"></div></div>' +
+                 '<div class="hint">Click the plan where this camera stands.</div>'
+               : '<div class="none">Drop the floor plan in to place pins.</div>') +
+    '</div>' +
+
+    '<div class="sec"><h3>Doorways</h3>' +
+      '<div class="hint">Press <b>Place doorway</b>, then click the door in the panorama.</div>' +
+      (v.links.length ? v.links.map(function(l,i){
+        var t = views.find(function(x){ return x.id===l.to; });
+        return '<div class="item"><span class="g">'+(t?t.name:l.to)+'</span>' +
+               '<span class="a">'+l.yaw+'°</span>' +
+               '<button data-k="l" data-i="'+i+'">×</button></div>';
+      }).join('') : '<div class="none">None yet</div>') +
+    '</div>' +
+
+    '<div class="sec"><h3>Materials</h3>' +
+      '<label>Material to place</label>' +
+      '<select id="matPick"><option value="">— choose —</option>' +
+        Object.keys(zones).map(function(z){
+          return '<optgroup label="'+z+'">' + zones[z].map(function(c){
+            return '<option value="'+c+'">'+c+' · '+MATERIALS[c].title+'</option>';
+          }).join('') + '</optgroup>';
+        }).join('') +
+      '</select>' +
+      '<div class="hint">Choose one, press <b>Place material</b>, then click it in the panorama.</div>' +
+      (v.spots.length ? v.spots.map(function(s,i){
+        return '<div class="item"><span class="g">'+s.mat+' · '+
+               ((MATERIALS[s.mat]||{}).title||'')+'</span>' +
+               '<span class="a">'+s.yaw+'°</span>' +
+               '<button data-k="s" data-i="'+i+'">×</button></div>';
+      }).join('') : '<div class="none">None yet</div>') +
+    '</div>' +
+
+    '<div class="sec"><h3>Project</h3>' + projectFields() + '</div>';
+
+  /* wiring */
+  $('iName').oninput  = function(){ v.name = this.value; drawList(); };
+  $('iId').oninput    = function(){ v.id = this.value.replace(/[^a-z0-9]/gi,'').toLowerCase(); };
+  $('iGroup').onchange= function(){ v.group = this.value; drawList(); };
+  $('iNorth').oninput = function(){ v.north = +this.value; $('nVal').textContent = this.value;
+                                    applyNorth(); drawList(); };
+  $('nHere').onclick  = function(e){ e.preventDefault();
+    var h = Math.round(((lon%360)+360)%360);
+    v.north = (v.north + h) % 360;
+    $('iNorth').value = v.north; $('nVal').textContent = v.north;
+    lon = 0; applyNorth(); drawList(); };
+
+  box.querySelectorAll('.item button').forEach(function(b){
+    b.onclick = function(){
+      var i = +this.dataset.i;
+      if(this.dataset.k==='l') v.links.splice(i,1); else v.spots.splice(i,1);
+      $('marks').innerHTML=''; drawList(); inspector();
+    };
+  });
+
+  if(planURL){
+    $('planBox').onclick = function(e){
+      var r = $('planImg').getBoundingClientRect();
+      v.pin = { x:+(((e.clientX-r.left)/r.width).toFixed(3)),
+                y:+(((e.clientY-r.top)/r.height).toFixed(3)) };
+      drawList(); inspector(); toast('Pin placed');
+    };
+    drawPins();
+  }
+  wireProject();
+}
+
+function drawPins(){
+  var box = $('planBox'); if(!box) return;
+  box.querySelectorAll('.ppin').forEach(function(p){ p.remove(); });
+  views.forEach(function(v,i){
+    if(!v.pin) return;
+    var d = document.createElement('div');
+    d.className = 'ppin'+(i===cur?' on':'');
+    d.style.left = (v.pin.x*100)+'%'; d.style.top = (v.pin.y*100)+'%';
+    box.appendChild(d);
+  });
+  var c = $('pcone');
+  if(c && cur>=0 && views[cur].pin){
+    c.style.display='block';
+    c.style.left = (views[cur].pin.x*100)+'%';
+    c.style.top  = (views[cur].pin.y*100)+'%';
+  } else if(c) c.style.display='none';
+}
+function turnCone(h){
+  var c = $('pcone'); if(!c || c.style.display==='none') return;
+  c.style.transform = 'rotate('+h+'deg)';
+}
+
+function projectFields(){
+  return '<label>Project name</label><input type="text" id="pName" value="'+esc(P.project)+'">' +
+    '<label>Client line on the cover</label><input type="text" id="pClient" value="'+esc(P.client)+'">' +
+    '<label>Cover image filename</label><input type="text" id="pCover" value="'+esc(P.cover)+'">' +
+    '<label>Logo filename (optional)</label><input type="text" id="pLogo" value="'+esc(P.logo)+'">' +
+    '<label>Ambient audio filename (optional)</label><input type="text" id="pAudio" value="'+esc(P.audio)+'">' +
+    '<div class="two"><div><label>Plan file</label>' +
+      '<input type="text" id="pPlan" value="'+esc(P.planImage)+'"></div>' +
+      '<div><label>Plan zoom</label><input type="text" id="pZoom" value="'+P.planZoom+'"></div></div>' +
+    '<label>About this project</label><textarea id="pInfo">'+esc(P.info)+'</textarea>' +
+    '<div class="hint">Start a line with # to make it a heading.</div>';
+}
+function wireProject(){
+  var map = {pName:'project',pClient:'client',pCover:'cover',pLogo:'logo',pAudio:'audio',
+             pPlan:'planImage',pInfo:'info'};
+  Object.keys(map).forEach(function(id){
+    var el = $(id); if(el) el.oninput = function(){ P[map[id]] = this.value; };
+  });
+  if($('pZoom')) $('pZoom').oninput = function(){ P.planZoom = +this.value || 14; };
+}
+
+/* ═══ files in ═══ */
+function handle(files){
+  var imgs = [], plan = null, js = null;
+  Array.prototype.forEach.call(files, function(f){
+    if(/\.js$/i.test(f.name)) js = f;
+    else if(/^image\//.test(f.type)) imgs.push(f);
+  });
+  if(js) importJS(js);
+  if(imgs.length) addPanoramas(imgs);
+}
+
+$('bPano').onclick = function(){ $('fPano').click(); };
+$('fPano').onchange = function(){ addPanoramas(this.files); this.value=''; };
+$('bPlan').onclick = function(){ $('fPlan').click(); };
+$('fPlan').onchange = function(){ setPlan(this.files[0]); this.value=''; };
+$('bImport').onclick = function(){ $('fImport').click(); };
+$('fImport').onchange = function(){ importJS(this.files[0]); this.value=''; };
+
+function setPlan(f){
+  if(!f) return;
+  planURL = URL.createObjectURL(f);
+  P.planImage = f.name.replace(/\s+/g,'_');
+  inspector(); toast('Floor plan loaded');
+}
+
+function importJS(f){
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var w = {};
+      (new Function('window', r.result))(w);
+      var T = w.TOUR; if(!T) throw new Error('no window.TOUR found');
+      P.project=T.project||P.project; P.client=T.client||''; P.cover=T.cover||'';
+      P.logo=T.logo||''; P.audio=T.audio||''; P.info=T.info||P.info;
+      if(T.plan){ P.planImage=T.plan.image||P.planImage; P.planZoom=T.plan.zoom||14;
+                  P.planSize=T.plan.size||'300px'; P.planRotation=T.plan.rotation||0; }
+      if(T.materials && Object.keys(T.materials).length) MATERIALS = T.materials;
+      (T.views||[]).forEach(function(nv){
+        var ex = views.find(function(v){ return v.file===nv.file; });
+        if(ex){ ex.id=nv.id||ex.id; ex.name=nv.name||ex.name; ex.group=nv.group||ex.group;
+                ex.north=nv.north||0; ex.pin=nv.pin||null;
+                ex.links=nv.links||[]; ex.spots=nv.spots||[]; }
+        else views.push({ id:nv.id, file:nv.file, name:nv.name, group:nv.group||'Interior',
+                          north:nv.north||0, pin:nv.pin||null,
+                          links:nv.links||[], spots:nv.spots||[], url:null });
+      });
+      $('empty').style.display = views.length ? 'none' : 'flex';
+      $('bExport').disabled = !views.length;
+      drawList(); if(cur<0 && views.length) select(0); else inspector();
+      toast('Imported — now drop the panoramas to see them');
+    }catch(e){ toast('Could not read that file'); console.error(e); }
+  };
+  r.readAsText(f);
+}
+
+['dragenter','dragover'].forEach(function(e){
+  addEventListener(e, function(ev){ ev.preventDefault(); document.body.classList.add('dragging'); });
+});
+['dragleave','drop'].forEach(function(e){
+  addEventListener(e, function(ev){ ev.preventDefault();
+    if(e==='drop'||ev.clientX<=0) document.body.classList.remove('dragging'); });
+});
+addEventListener('drop', function(ev){
+  ev.preventDefault(); document.body.classList.remove('dragging');
+  if(ev.dataTransfer.files.length) handle(ev.dataTransfer.files);
+});
+
+/* ═══ modes ═══ */
+function setMode(m){
+  mode = m;
+  $('mLook').classList.toggle('on', m==='look');
+  $('mLink').classList.toggle('on', m==='link');
+  $('mSpot').classList.toggle('on', m==='spot');
+  $('canvas').classList.toggle('picking', m!=='look');
+}
+$('mLook').onclick = function(){ setMode('look'); };
+$('mLink').onclick = function(){ setMode('link'); };
+$('mSpot').onclick = function(){ setMode('spot'); };
+
+/* ═══ export ═══ */
+function q(s){ return '"' + String(s==null?'':s).replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"'; }
+function esc(s){ return String(s==null?'':s).replace(/[<>&"]/g, function(c){
+  return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+
+function buildJS(){
+  var L = [];
+  L.push('/* ═══════════════════════════════════════════════════════════');
+  L.push('   ' + P.project.toUpperCase() + ' — TOUR DATA');
+  L.push('   FSM Jayapena & Co.');
+  L.push('   Generated by Tour Studio · ' + new Date().toISOString().slice(0,10));
+  L.push('   ═══════════════════════════════════════════════════════════ */');
+  L.push('');
+  L.push('window.TOUR = {');
+  L.push('');
+  L.push('  project: ' + q(P.project) + ',');
+  if(P.client) L.push('  client:  ' + q(P.client) + ',');
+  if(P.cover)  L.push('  cover:   ' + q(P.cover) + ',');
+  if(P.logo)   L.push('  logo:    ' + q(P.logo) + ',');
+  if(P.audio){ L.push('  audio:   ' + q(P.audio) + ',');
+               L.push('  audioVolume: 0.35,'); }
+  L.push('');
+  L.push('  info:');
+  var lines = String(P.info).split('\n');
+  lines.forEach(function(t,i){
+    L.push('    ' + q(t + (i<lines.length-1 ? '\\n' : '')) + (i<lines.length-1 ? ' +' : ','));
+  });
+  L.push('');
+  L.push('  plan: {');
+  L.push('    image:    ' + q(P.planImage) + ',');
+  L.push('    title:    "Floor Plan",');
+  L.push('    rotation: ' + (P.planRotation||0) + ',');
+  L.push('    size:     ' + q(P.planSize||'300px') + ',');
+  L.push('    zoom:     ' + (P.planZoom||14));
+  L.push('  },');
+  L.push('');
+  L.push('  materials: {');
+  var codes = Object.keys(MATERIALS);
+  codes.forEach(function(c,i){
+    var m = MATERIALS[c], parts = [];
+    ['title','zone','desc','appears','supplier','loc','contact','ref','link','status','image']
+      .forEach(function(k){ if(m[k]) parts.push(k + ': ' + q(m[k])); });
+    L.push('    ' + q(c) + ': { ' + parts.join(', ') + ' }' + (i<codes.length-1 ? ',' : ''));
+  });
+  L.push('  },');
+  L.push('');
+  L.push('  views: [');
+  views.forEach(function(v,i){
+    var body = [];
+    body.push('      id: '      + q(v.id) + ',');
+    body.push('      file: '    + q(v.file) + ',');
+    body.push('      name: '    + q(v.name) + ',');
+    body.push('      group: '   + q(v.group) + ',');
+    body.push('      heading: 0' + (v.north || v.pin || v.links.length || v.spots.length ? ',' : ''));
+    if(v.north) body.push('      north: ' + v.north + (v.pin || v.links.length || v.spots.length ? ',' : ''));
+    if(v.pin)   body.push('      pin: { x: ' + v.pin.x.toFixed(3) + ', y: ' + v.pin.y.toFixed(3) + ' }' +
+                          (v.links.length || v.spots.length ? ',' : ''));
+    if(v.links.length){
+      body.push('      links: [');
+      v.links.forEach(function(l,j){
+        body.push('        { to: ' + q(l.to) + ', yaw: ' + l.yaw + ', pitch: ' + l.pitch + ' }' +
+                  (j<v.links.length-1 ? ',' : ''));
+      });
+      body.push('      ]' + (v.spots.length ? ',' : ''));
+    }
+    if(v.spots.length){
+      body.push('      spots: [');
+      v.spots.forEach(function(s,j){
+        body.push('        { yaw: ' + s.yaw + ', pitch: ' + s.pitch + ', mat: ' + q(s.mat) + ' }' +
+                  (j<v.spots.length-1 ? ',' : ''));
+      });
+      body.push('      ]');
+    }
+    L.push('    {');
+    L.push(body.join('\n'));
+    L.push('    }' + (i<views.length-1 ? ',' : ''));
+    L.push('');
+  });
+  L.push('  ]');
+  L.push('};');
+  L.push('');
+  return L.join('\n');
+}
+
+$('bExport').onclick = function(){
+  var txt = buildJS();
+  /* prove it parses before handing it over */
+  try { (new Function('window', txt))({}); }
+  catch(e){ toast('Export failed — ' + e.message); console.error(e); return; }
+  var b = new Blob([txt], {type:'text/javascript'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = 'views.js'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+  toast('views.js checked and downloaded');
+};
+
+/* ═══ toast ═══ */
+var tt;
+function toast(m){
+  $('toast').textContent = m; $('toast').classList.add('on');
+  clearTimeout(tt); tt = setTimeout(function(){ $('toast').classList.remove('on'); }, 2200);
+}
+
+/* ═══ go ═══ */
+initGL(); inspector();
 })();
 </script>
 </body>
