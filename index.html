@@ -87,17 +87,17 @@
     45%{opacity:1;transform:translateX(2px)}}
   @keyframes sweep{to{transform:rotate(360deg)}}
 
-  /* info — filled disc with an orbiting arc */
+  /* info — filled disc with a soft outward pulse */
   .hs.info .ring{position:relative;width:38px;height:38px;border-radius:50%;
     background:var(--clay);display:flex;align-items:center;justify-content:center;
     box-shadow:0 0 0 4px rgba(138,59,43,.22);transition:background .22s,transform .22s}
   .hs.info .ring::before{content:"";position:absolute;inset:-6px;border-radius:50%;
-    border:1.5px solid rgba(242,239,233,.72);border-right-color:transparent;
-    border-bottom-color:transparent;animation:orbit 3.4s linear infinite}
+    border:1.5px solid rgba(242,239,233,.5);animation:breathe 2.9s ease-in-out infinite}
   .hs.info .ring svg{width:17px;height:17px;fill:none;stroke:#F2EFE9;stroke-width:2.4;
     stroke-linecap:round}
   .hs.info:hover .ring{background:var(--clay-hi);transform:scale(1.12)}
-  @keyframes orbit{to{transform:rotate(360deg)}}
+  @keyframes breathe{0%,100%{transform:scale(1);opacity:.5}
+    50%{transform:scale(1.16);opacity:0}}
 
   .hs:hover .lbl{background:rgba(138,59,43,.92)}
   @media(prefers-reduced-motion:reduce){
@@ -216,11 +216,17 @@
   #cover{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:18px;padding:32px;text-align:center;
     background:var(--ink);transition:opacity 1s ease}
-  #cover.photo{display:block!important;position:fixed;inset:0;padding:0!important}
+  #cover.photo{display:block!important;position:fixed;inset:0;padding:0!important;
+    overflow:hidden}
+  /* a blurred copy fills the screen, the real image sits whole on top */
+  #coverBg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;
+    filter:blur(26px) brightness(.42);opacity:0;animation:fadeIn 1.4s .1s forwards}
+  #coverBg[hidden]{display:none}
   #coverInner{position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:20px;padding:20px}
-  #coverImg{display:block;width:min(94vw,1100px);height:auto;max-height:68vh;
-    object-fit:contain;border-radius:2px;opacity:0;animation:rise 1.2s .1s forwards}
+    align-items:center;justify-content:center;gap:18px;padding:16px}
+  #coverImg{display:block;width:100%;height:auto;max-width:none;max-height:82vh;
+    object-fit:contain;opacity:0;animation:rise 1.2s .1s forwards}
+  @keyframes fadeIn{to{opacity:1}}
   #coverImg[hidden]{display:none}
   /* When a cover photograph is supplied it already carries the
      titles, so the typographic block steps aside.              */
@@ -317,7 +323,7 @@
     .th em{display:none}
     #tools{padding-top:4px}
     .tool{width:34px;height:28px}
-    #coverImg{max-height:56vh;width:min(100%,620px)}
+    #coverImg{max-height:68vh}
     #cover.photo{gap:12px;padding:14px}
     #start{padding:10px 24px}
     .sheet{padding:14px 16px}
@@ -386,6 +392,7 @@
 </div>
 
 <div id="cover">
+ <img id="coverBg" alt="" hidden>
  <div id="coverInner">
   <img id="coverImg" alt="" hidden>
   <img id="coverLogo" alt="" hidden>
@@ -411,6 +418,18 @@
     <button class="mini" id="clr">Clear</button>
     <button class="mini" id="cls">Close (Shift+E)</button>
   </div>
+  <div style="border-top:1px solid rgba(242,239,233,.14);padding-top:11px">
+    <p style="margin-bottom:7px"><b>Nudge the hotspots.</b> If they sit a little off the
+       doorway, drag until they land, then save the line into that view.</p>
+    <input type="range" id="nudge" min="-180" max="180" value="0" step="0.5">
+    <div class="row" style="margin-top:7px">
+      <span style="font-size:12px;color:var(--dim)">offset
+        <b id="nudgeVal" style="color:#F2EFE9;font-variant-numeric:tabular-nums">0</b>°</span>
+      <button class="mini" id="nudgeSave">Save line</button>
+      <button class="mini" id="nudgeZero">Reset</button>
+    </div>
+  </div>
+
   <div style="border-top:1px solid rgba(242,239,233,.14);padding-top:11px">
     <p style="margin-bottom:7px">North: face something you can find on the plan,
        then drag until the map cone agrees. Release to apply.</p>
@@ -461,6 +480,8 @@ document.title           = (CFG.project || '360') + ' — 360° Tour';
 if (CFG.cover) {
   $('coverImg').src = CFG.cover;
   $('coverImg').hidden = false;
+  $('coverBg').src = CFG.cover;
+  $('coverBg').hidden = false;
   $('coverImg').onerror = () => {         /* fall back to the typographic cover */
     $('coverImg').hidden = true;
     $('cover').classList.remove('photo');
@@ -569,6 +590,9 @@ function onNode(id) {
   $('mobView').textContent = v.name || '';
   $('mobProg').textContent = prog;
   $('tBack').hidden = trail.length < 2;
+  const nz = $('nudge');
+  if (nz) { const o = (typeof v.yawOffset === 'number') ? v.yawOffset : (v.north || 0);
+            nz.value = o; $('nudgeVal').textContent = o; }
   const nc = $('northCal');
   nc.value = (typeof v.north === 'number') ? v.north : 0;
   $('northVal').textContent = nc.value;
@@ -592,7 +616,10 @@ function drawSpots(id) {
   const v = V.find(x => x.id === id);
   if (!v) return;
 
-  const N = v.north || 0;
+  /* Where the hotspots sit. Normally this is the view's north.
+     If they read a few degrees out, the nudge control in
+     authoring mode adjusts it and hands you the line to keep. */
+  const N = (typeof v.yawOffset === 'number') ? v.yawOffset : (v.north || 0);
 
   (v.links || []).forEach(L => {
     const dest = V.find(x => x.id === L.to);
@@ -863,6 +890,22 @@ function wireAuthoring() {
   $('cpy').onclick = () => { $('out').select(); document.execCommand('copy'); };
   $('clr').onclick = () => { $('out').value = ''; };
   $('cls').onclick = () => { on = false; $('author').classList.remove('on'); };
+
+  function curView(){ return V.find(x => x.id === cur); }
+  function setOffset(val){
+    const v = curView(); if (!v) return;
+    v.yawOffset = +val;
+    $('nudge').value = val; $('nudgeVal').textContent = val;
+    drawSpots(cur);
+  }
+  $('nudge').oninput   = function(){ setOffset(this.value); };
+  $('nudgeZero').onclick = function(){
+    const v = curView(); if (v) setOffset(v.north || 0);
+  };
+  $('nudgeSave').onclick = () => {
+    const v = curView(); if (!v) return;
+    push('      yawOffset: ' + (v.yawOffset || 0) + ',   /* ' + v.name + ' */');
+  };
 
   $('northCal').oninput  = function () { $('northVal').textContent = this.value; };
   $('northCal').onchange = function () {
