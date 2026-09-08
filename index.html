@@ -10,31 +10,29 @@
 <!--
   ═══════════════════════════════════════════════════════════════
   FSM JAYAPENA & CO. — 360° TOUR
-  Engine: Photo Sphere Viewer 5 (panorama, transitions, map)
-  Interface: built here, so every pixel is ours.
 
-  One file. Reads views.js. Needs internet on first open.
-  Shift+E opens authoring mode.
+  Runs on the same engine and the same maths as Tour Studio, so
+  every hotspot lands exactly where it was clicked. views.js is
+  read literally — nothing is recalculated.
+
+  One file. Reads views.js. Shift+E for the authoring tools.
   ═══════════════════════════════════════════════════════════════
 -->
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/map-plugin@5/index.min.css">
-
 <style>
-  :root{
-    --ink:#141210; --ink2:#1F1C18; --clay:#8A3B2B; --clay-hi:#A84733;
-    --paper:#F2EFE9; --dim:rgba(242,239,233,.58); --line:rgba(242,239,233,.16);
-    --psv-loader-color:#8A3B2B;
-  }
+  :root{--ink:#141210;--ink2:#1F1C18;--clay:#8A3B2B;--clay-hi:#A84733;
+    --paper:#F2EFE9;--dim:rgba(242,239,233,.56);--line:rgba(242,239,233,.15)}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  html,body{height:100%;overflow:hidden;background:var(--ink);touch-action:none}
   body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    color:var(--paper);-webkit-font-smoothing:antialiased;font-size:14px}
+    color:var(--paper);font-size:14px;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;cursor:pointer}
   #stage{position:fixed;inset:0}
-  button{font:inherit;cursor:pointer}
-  .psv-container{background:var(--ink)}
-  .psv-map{border:1px solid var(--line)!important;box-shadow:0 8px 30px rgba(0,0,0,.55)!important}
+  #stage canvas{display:block;cursor:grab}
+  #stage.grabbing canvas{cursor:grabbing}
+  #fade{position:fixed;inset:0;z-index:20;background:var(--ink);opacity:0;
+    pointer-events:none;transition:opacity .42s ease}
+  #fade.on{opacity:1}
 
   /* ═══ loading ═══ */
   #boot{position:fixed;inset:0;z-index:190;display:none;flex-direction:column;
@@ -46,7 +44,7 @@
   #boot .s{font-size:12px;color:rgba(242,239,233,.34)}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ═══ masthead ═══════════════════════════════════════ */
+  /* ═══ masthead ═══ */
   #hdr{position:fixed;top:0;left:0;right:0;z-index:40;padding:16px 20px 40px;
     pointer-events:none;background:linear-gradient(180deg,rgba(20,18,16,.72),transparent);
     transition:opacity .4s}
@@ -61,53 +59,79 @@
     pointer-events:none;opacity:.94;transition:opacity .4s}
   #logo[hidden]{display:none}
 
-  /* ═══ hotspots ═══════════════════════════════════════ */
+  /* ═══ hotspots ═══ */
   #spots{position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden}
-  .hs{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
-    display:flex;flex-direction:column;align-items:center;gap:7px;
-    filter:drop-shadow(0 3px 12px rgba(0,0,0,.65));transition:opacity .2s}
-  .hs .lbl{font-size:11px;font-weight:600;letter-spacing:.03em;white-space:nowrap;
-    background:rgba(20,18,16,.7);padding:3px 10px;border-radius:2px;transition:background .2s}
+  /* The ring alone marks the spot. The label floats above it
+     and is taken out of the flow, so nothing shifts the
+     anchor away from the point that was clicked.            */
+  .hs{position:absolute;width:0;height:0;pointer-events:none;
+    filter:drop-shadow(0 3px 12px rgba(0,0,0,.65));transition:opacity .18s}
+  .hs .ring{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    pointer-events:auto;cursor:pointer}
+  .hs:hover .ring,.hs .ring:hover{transform:translate(-50%,-50%) scale(1.1)}
+  .hs .lbl{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+    font-size:11px;font-weight:600;letter-spacing:.03em;white-space:nowrap;
+    background:rgba(20,18,16,.7);padding:3px 10px;border-radius:2px;
+    pointer-events:none;transition:background .2s}
+  .hs:hover .lbl{background:rgba(138,59,43,.92)}
 
-  /* navigation — two chevrons stepping forward inside a ring */
   .hs.nav .ring{position:relative;width:46px;height:46px;border-radius:50%;
-    border:1.5px solid rgba(242,239,233,.55);background:rgba(20,18,16,.2);
-    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border:1.5px solid rgba(242,239,233,.6);background:rgba(20,18,16,.2);
+    display:flex;align-items:center;justify-content:center;
     transition:background .22s,border-color .22s,transform .22s}
-  .hs.nav .ring::before{content:"";position:absolute;inset:-1.5px;border-radius:50%;
-    border:1.5px solid rgba(242,239,233,.85);
-    clip-path:polygon(50% 0,100% 0,100% 100%,50% 100%);
-    animation:sweep 2.8s linear infinite}
   .hs.nav .ring svg{width:26px;height:16px;fill:none;stroke:#F2EFE9;stroke-width:2.2;
     stroke-linecap:round;stroke-linejoin:round}
   .hs.nav .ring svg path:nth-child(1){animation:step 1.9s ease-in-out infinite}
   .hs.nav .ring svg path:nth-child(2){animation:step 1.9s ease-in-out .28s infinite}
-  .hs.nav:hover .ring{background:var(--clay);border-color:var(--clay);transform:scale(1.1)}
+  .hs.nav:hover .ring{background:var(--clay);border-color:var(--clay)}
   @keyframes step{0%,100%{opacity:.35;transform:translateX(-2px)}
     45%{opacity:1;transform:translateX(2px)}}
-  @keyframes sweep{to{transform:rotate(360deg)}}
 
-  /* info — filled disc with a soft outward pulse */
   .hs.info .ring{position:relative;width:38px;height:38px;border-radius:50%;
     background:var(--clay);display:flex;align-items:center;justify-content:center;
-    box-shadow:0 0 0 4px rgba(138,59,43,.22);transition:background .22s,transform .22s}
+    box-shadow:0 0 0 4px rgba(138,59,43,.2);transition:background .22s,transform .22s}
   .hs.info .ring::before{content:"";position:absolute;inset:-6px;border-radius:50%;
     border:1.5px solid rgba(242,239,233,.5);animation:breathe 2.9s ease-in-out infinite}
   .hs.info .ring svg{width:17px;height:17px;fill:none;stroke:#F2EFE9;stroke-width:2.4;
     stroke-linecap:round}
-  .hs.info:hover .ring{background:var(--clay-hi);transform:scale(1.12)}
-  @keyframes breathe{0%,100%{transform:scale(1);opacity:.5}
-    50%{transform:scale(1.16);opacity:0}}
+  .hs.info:hover .ring{background:var(--clay-hi)}
+  @keyframes breathe{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.16);opacity:0}}
 
-  .hs:hover .lbl{background:rgba(138,59,43,.92)}
-  @media(prefers-reduced-motion:reduce){
-    .hs .ring::before,.hs.nav .ring svg path{animation:none!important}}
+  /* ═══ floor plan ═══ */
+  #plan{position:fixed;left:20px;bottom:118px;z-index:44;width:300px;
+    background:rgba(20,18,16,.93);border:1px solid var(--line);border-radius:3px;
+    overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5);transition:opacity .3s}
+  #plan[hidden]{display:none}
+  #planBar{display:flex;align-items:center;gap:8px;padding:8px 11px;font-size:9.5px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  #planBar .t{flex:1;color:var(--clay)}
+  .pbtn{border:none;background:none;color:var(--dim);padding:3px 6px;border-radius:2px;
+    font-size:13px;line-height:1}
+  .pbtn:hover{background:rgba(242,239,233,.14);color:var(--paper)}
+  #planBox{position:relative;line-height:0}
+  #planImg{width:100%;display:block;opacity:.95}
+  .ppin{position:absolute;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
+    background:rgba(242,239,233,.55);border:1.5px solid rgba(20,18,16,.65);cursor:pointer;
+    padding:0;transition:background .18s,transform .18s}
+  .ppin:hover{background:var(--paper);transform:scale(1.2)}
+  .ppin.on{background:var(--clay);border-color:var(--paper);width:16px;height:16px;
+    margin:-8px 0 0 -8px}
+  .ppin b{position:absolute;left:50%;top:calc(100% + 4px);transform:translateX(-50%);
+    font-size:9px;font-weight:600;white-space:nowrap;color:rgba(242,239,233,.75);
+    opacity:0;transition:opacity .18s;pointer-events:none;text-shadow:0 1px 3px #000}
+  .ppin:hover b,.ppin.on b{opacity:1;color:var(--paper)}
+  #cone{position:absolute;width:56px;height:56px;margin-left:-28px;margin-top:-56px;
+    transform-origin:50% 100%;pointer-events:none;display:none;border-radius:50%;
+    background:conic-gradient(from -26deg,rgba(138,59,43,0),rgba(138,59,43,.5) 12deg,
+      rgba(138,59,43,.5) 40deg,rgba(138,59,43,0) 52deg)}
+  #plan.big{width:min(720px,84vw);left:50%;bottom:50%;transform:translate(-50%,50%);z-index:150}
+  #planScrim{position:fixed;inset:0;z-index:149;background:rgba(20,18,16,.74);display:none}
+  body.plan-big #planScrim{display:block}
 
-  /* ═══ bottom bar ═════════════════════════════════════ */
+  /* ═══ bottom bar ═══ */
   #bar{position:fixed;left:0;right:0;bottom:0;z-index:45;
-    background:linear-gradient(0deg,rgba(20,18,16,.93),rgba(20,18,16,.62) 72%,transparent);
+    background:linear-gradient(0deg,rgba(20,18,16,.93),rgba(20,18,16,.6) 72%,transparent);
     padding:26px 16px 12px;transition:transform .35s ease,opacity .35s ease}
-  #bar.tucked{transform:translateY(calc(100% - 4px));opacity:0}
   #cap{display:flex;align-items:baseline;gap:10px;padding:0 4px 8px;font-size:11px;
     letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
   #cap b{color:var(--paper);font-weight:600;letter-spacing:.04em}
@@ -118,7 +142,7 @@
   #strip::-webkit-scrollbar-thumb{background:rgba(242,239,233,.22)}
   .th{flex:none;width:104px;border:1px solid transparent;border-radius:2px;overflow:hidden;
     background:none;padding:0;text-align:left;position:relative}
-  .th .im{height:52px;background:#26221E;overflow:hidden}
+  .th .im{height:52px;background:#2A2521;overflow:hidden}
   .th img{width:100%;height:100%;object-fit:cover;opacity:.6;transition:opacity .2s}
   .th em{display:block;font-style:normal;font-size:10px;padding:4px 4px 3px;color:var(--dim);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -133,38 +157,34 @@
     stroke-linecap:round;stroke-linejoin:round}
   #tools{display:flex;align-items:center;gap:5px;padding-top:8px}
   #tools .sp{flex:1}
-  #tAudio svg #w1,#tAudio svg #w2{opacity:.25;transition:opacity .25s}
-  #tAudio.on svg #w1{opacity:1;animation:wave 1.8s ease-in-out infinite}
-  #tAudio.on svg #w2{opacity:1;animation:wave 1.8s ease-in-out .35s infinite}
-  @keyframes wave{0%,100%{opacity:.35}50%{opacity:1}}
   .tool{width:32px;height:32px;border:1px solid transparent;background:none;border-radius:2px;
     color:var(--dim);display:flex;align-items:center;justify-content:center;transition:all .18s}
   .tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round}
   .tool:hover{color:var(--paper);background:rgba(242,239,233,.12)}
   .tool.on{color:var(--clay);border-color:var(--line)}
-  #tSound .wave1,#tSound .wave2{opacity:.25;transition:opacity .25s}
-  #tSound.on .wave1{opacity:1}
-  #tSound.on .wave2{opacity:1;animation:waveOut 2.4s ease-in-out infinite}
-  @keyframes waveOut{0%,100%{opacity:.35}50%{opacity:1}}
   .tool[hidden]{display:none}
+  #tAudio svg #w1,#tAudio svg #w2{opacity:.25;transition:opacity .25s}
+  #tAudio.on svg #w1{opacity:1;animation:wave 1.8s ease-in-out infinite}
+  #tAudio.on svg #w2{opacity:1;animation:wave 1.8s ease-in-out .35s infinite}
+  @keyframes wave{0%,100%{opacity:.35}50%{opacity:1}}
   #tuck{position:fixed;left:50%;transform:translateX(-50%);bottom:4px;z-index:46;
     width:44px;height:20px;border:none;background:rgba(20,18,16,.8);border-radius:2px 2px 0 0;
     color:var(--dim);display:flex;align-items:center;justify-content:center}
-  #tuck:hover{color:var(--paper)}
   #tuck svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round;transition:transform .3s}
   body.tucked #tuck svg{transform:rotate(180deg)}
-  body.tucked #hdr,body.tucked #logo{opacity:0}
+  body.tucked #bar{transform:translateY(calc(100% - 4px));opacity:0}
+  body.tucked #hdr,body.tucked #logo,body.tucked #plan{opacity:0;pointer-events:none}
 
-  /* ═══ overlays: grid, info, material ═════════════════ */
-  .sheet{position:fixed;inset:0;z-index:120;background:rgba(20,18,16,.94);
+  /* ═══ sheets ═══ */
+  .sheet{position:fixed;inset:0;z-index:120;background:rgba(20,18,16,.95);
     display:none;flex-direction:column;padding:26px 24px}
   .sheet.on{display:flex}
   .sheet h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--clay);
     font-weight:700;margin-bottom:16px}
-  .sheet .x{position:absolute;top:20px;right:22px;width:34px;height:34px;border:1px solid var(--line);
-    background:none;color:var(--paper);border-radius:2px;font-size:17px;line-height:1}
+  .sheet .x{position:absolute;top:20px;right:22px;width:34px;height:34px;
+    border:1px solid var(--line);background:none;border-radius:2px;font-size:17px;line-height:1}
   .sheet .x:hover{background:var(--clay);border-color:var(--clay)}
   #gridWrap{overflow-y:auto;display:flex;flex-direction:column;gap:22px}
   .ggroup h3{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
@@ -172,27 +192,26 @@
   .gitems{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
   .gcard{border:1px solid var(--line);border-radius:3px;overflow:hidden;background:none;
     padding:0;text-align:left;position:relative;transition:border-color .18s}
-  .gcard .im{height:112px;background:#26221E;overflow:hidden}
+  .gcard .im{height:112px;background:#2A2521;overflow:hidden}
   .gcard img{width:100%;height:100%;object-fit:cover;opacity:.8;transition:opacity .2s}
   .gcard span{display:block;padding:8px 10px;font-size:12.5px;font-weight:600}
   .gcard:hover{border-color:var(--clay)}
   .gcard:hover img{opacity:1}
   .gcard.seen::after{content:"✓";position:absolute;top:7px;right:9px;color:#7FB07F;
     font-size:13px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.8)}
-
   #infoBody{overflow-y:auto;max-width:64ch;line-height:1.75;color:rgba(242,239,233,.86)}
   #infoBody p{margin-bottom:13px}
   #infoBody h4{font-size:13px;margin:18px 0 7px;color:var(--paper)}
 
-  /* material card slides in from the right */
+  /* ═══ material card ═══ */
   #matScrim{position:fixed;inset:0;z-index:128;background:rgba(20,18,16,.5);display:none}
   #matScrim.on{display:block}
   #mat{position:fixed;top:0;right:0;bottom:0;width:min(390px,88vw);z-index:130;
     background:var(--ink2);border-left:1px solid var(--line);padding:24px;overflow-y:auto;
     transform:translateX(102%);transition:transform .38s cubic-bezier(.4,0,.2,1)}
   #mat.on{transform:none}
-  #mat .x{position:absolute;top:16px;right:18px;width:30px;height:30px;border:1px solid var(--line);
-    background:none;color:var(--paper);border-radius:2px}
+  #mat .x{position:absolute;top:16px;right:18px;width:30px;height:30px;
+    border:1px solid var(--line);background:none;border-radius:2px}
   #mat .k{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--clay);font-weight:700}
   #mat h3{font-size:20px;font-weight:650;letter-spacing:-.01em;margin:6px 0 14px}
   #mat img{width:100%;border-radius:2px;margin-bottom:14px;display:block}
@@ -203,8 +222,8 @@
   #mat dd{margin-top:3px}
   #mat dd a{color:#C58A79;word-break:break-all}
   #mat .code{display:inline-block;border:1px solid var(--line);padding:2px 7px;border-radius:2px;
-    font-size:10.5px;letter-spacing:.12em;color:var(--paper);margin-right:7px}
-  #mat .chip{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;
+    font-size:10.5px;letter-spacing:.12em;margin-right:7px}
+  .chip{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;
     letter-spacing:.12em;text-transform:uppercase;font-weight:700}
   .chip.confirmed{background:rgba(127,176,127,.18);color:#8FC08F}
   .chip.verify{background:rgba(214,160,74,.18);color:#D6A04A}
@@ -212,86 +231,65 @@
   #mat .foot{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);
     font-size:11px;line-height:1.6;color:rgba(242,239,233,.42)}
 
-  /* ═══ the arrival ════════════════════════════════════ */
+  /* ═══ cover ═══ */
   #cover{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:18px;padding:32px;text-align:center;
-    background:var(--ink);transition:opacity 1s ease}
-  #cover.photo{display:block!important;position:fixed;inset:0;padding:0!important;
-    overflow:hidden}
-  /* a blurred copy fills the screen, the real image sits whole on top */
+    background:var(--ink);transition:opacity 1s ease;overflow:hidden}
+  #cover.gone{opacity:0;pointer-events:none}
+  #cover.photo{display:block;padding:0}
+  #cover.photo .rule,#cover.photo h1,#cover.photo .client,#cover.photo #coverLogo{display:none}
   #coverBg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;
-    filter:blur(26px) brightness(.42);opacity:0;animation:fadeIn 1.4s .1s forwards}
+    filter:blur(26px) brightness(.4);opacity:0;animation:fadeIn 1.4s .1s forwards}
   #coverBg[hidden]{display:none}
   #coverInner{position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:18px;padding:16px}
-  #coverImg{display:block;width:100%;height:auto;max-width:none;max-height:82vh;
-    object-fit:contain;opacity:0;animation:rise 1.2s .1s forwards}
-  @keyframes fadeIn{to{opacity:1}}
+    align-items:center;justify-content:flex-end;gap:16px;
+    padding:0 20px calc(7vh + env(safe-area-inset-bottom))}
+  #cover.photo #coverInner::before{content:"";position:absolute;left:0;right:0;bottom:0;
+    height:40vh;background:linear-gradient(0deg,rgba(20,18,16,.8),transparent);
+    pointer-events:none}
+  #cover.photo .count,#cover.photo #start{position:relative;z-index:2}
+  #coverImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:0;animation:fadeIn 1.3s .1s forwards}
   #coverImg[hidden]{display:none}
-  /* When a cover photograph is supplied it already carries the
-     titles, so the typographic block steps aside.              */
-  #cover.photo{justify-content:flex-end;padding-bottom:4vh}
-  #cover.photo .rule,#cover.photo h1,#cover.photo .client,#cover.photo #coverLogo{display:none}
-  #cover.photo .count{color:rgba(255,255,255,.8);text-shadow:0 1px 8px rgba(0,0,0,.7)}
-  #cover.photo #start{box-shadow:0 6px 24px rgba(0,0,0,.45)}
-  #cover.gone{opacity:0;pointer-events:none}
-  #cover img{max-width:min(340px,72vw);max-height:110px;margin-bottom:6px;
-    opacity:0;animation:rise 1.1s .15s forwards}
-  #cover img[hidden]{display:none}
-  #cover .rule{width:42px;height:2px;background:var(--clay);opacity:0;animation:rise .9s .3s forwards}
-  #cover h1{font-size:clamp(24px,5vw,36px);font-weight:650;letter-spacing:-.02em;line-height:1.18;
-    opacity:0;animation:rise 1s .45s forwards}
-  #cover .client{font-size:12.5px;color:var(--dim);max-width:38ch;
-    opacity:0;animation:rise 1s .6s forwards}
+  #cover .rule{width:42px;height:2px;background:var(--clay)}
+  #cover h1{font-size:clamp(24px,5vw,36px);font-weight:650;letter-spacing:-.02em;line-height:1.18}
+  #cover .client{font-size:12.5px;color:var(--dim);max-width:38ch}
   #cover .count{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
-    color:rgba(242,239,233,.36);opacity:0;animation:rise 1s .75s forwards}
+    color:rgba(242,239,233,.5);text-shadow:0 1px 6px rgba(0,0,0,.7)}
   #start{border:none;background:var(--clay);color:var(--paper);font-size:13.5px;font-weight:600;
-    padding:13px 34px;border-radius:3px;opacity:0;animation:rise 1s .9s forwards;
-    transition:background .2s}
+    padding:13px 34px;border-radius:3px;box-shadow:0 6px 22px rgba(0,0,0,.45);transition:background .2s}
   #start:hover{background:var(--clay-hi)}
   #cover .fail{color:#E0876F;font-size:13px;line-height:1.6;max-width:46ch}
   @keyframes rise{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{to{opacity:1}}
 
-  /* ═══ authoring ══════════════════════════════════════ */
-  #author{position:fixed;top:0;right:0;bottom:0;width:340px;z-index:300;background:#0C0A09;
+  /* ═══ authoring ═══ */
+  #author{position:fixed;top:0;right:0;bottom:0;width:330px;z-index:300;background:#0C0A09;
     border-left:1px solid var(--line);padding:18px;overflow-y:auto;display:none;
     flex-direction:column;gap:11px}
   #author.on{display:flex}
   #author h2{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--clay);font-weight:700}
   #author p{font-size:12px;line-height:1.6;color:var(--dim)}
-  #author textarea{width:100%;height:180px;background:#1A1715;color:var(--paper);font-size:11.5px;
+  #author textarea{width:100%;height:150px;background:#1A1715;color:var(--paper);font-size:11.5px;
     font-family:ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);
-    border-radius:3px;padding:10px;line-height:1.6;resize:vertical}
+    border-radius:3px;padding:10px;line-height:1.6}
   #author .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .mini{border:1px solid var(--line);background:rgba(242,239,233,.04);color:var(--paper);
     font-size:11px;padding:7px 11px;border-radius:2px}
   .mini:hover{background:rgba(242,239,233,.13)}
-  .mini.on{background:var(--clay);border-color:var(--clay)}
-  #northCal{width:100%;accent-color:var(--clay)}
+  #nudge{width:100%;accent-color:var(--clay)}
 
-  /* ═══ phones ═══════════════════════════════════════════
-     The plan is summoned rather than parked, the caption
-     moves into the masthead, and the strip shrinks so the
-     panorama keeps most of the screen.                     */
-  #planScrim{position:fixed;inset:0;z-index:148;background:rgba(20,18,16,.74);display:none}
-  #tPlan{display:none}
-
+  /* ═══ phones ═══ */
   @media(max-width:760px){
     .pj{font-size:15px}
     .mob{display:block}
     #hdr{padding:12px 16px 30px}
     #logo{max-width:104px;max-height:34px;top:12px;right:16px}
-
-    #tPlan{display:flex}
-    .psv-map{display:none!important}
-    body.plan-open #planScrim{display:block}
-    body.plan-open .psv-map{display:block!important;position:fixed!important;
-      left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
-      width:88vw!important;height:min(88vw,62vh)!important;max-width:none!important;
-      max-height:none!important;margin:0!important;z-index:150!important}
-
-    #bar{padding:20px 10px calc(8px + env(safe-area-inset-bottom))}
     #cap{display:none}
+    #plan{display:none}
+    body.plan-big #plan{display:block;width:88vw;left:50%;bottom:50%;
+      transform:translate(-50%,50%);z-index:150}
+    #bar{padding:20px 10px calc(8px + env(safe-area-inset-bottom))}
     #strip{gap:6px}
     .th{width:74px}
     .th .im{height:40px}
@@ -300,53 +298,52 @@
     .tool{width:38px;height:34px}
     .tool svg{width:17px;height:17px}
     #tuck{width:52px;height:18px;bottom:calc(env(safe-area-inset-bottom))}
-
     .hs .lbl{font-size:10px;padding:2px 8px}
     .hs.nav .ring{width:42px;height:42px}
     .hs.info .ring{width:34px;height:34px}
-
     #mat{width:100%}
     .sheet{padding:20px 16px}
     .gitems{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
     .gcard .im{height:86px}
     #author{width:100%}
   }
-  /* ═══ phone, held sideways ═══════════════════════════ */
   @media(max-height:520px) and (orientation:landscape){
     #hdr{padding:8px 14px 22px}
-    .fm{font-size:9px}
     .pj{font-size:13px}
-    .mob{font-size:10px}
     #bar{padding:14px 10px calc(6px + env(safe-area-inset-bottom))}
-    .th{width:64px}
-    .th .im{height:32px}
-    .th em{display:none}
-    #tools{padding-top:4px}
-    .tool{width:34px;height:28px}
-    #coverImg{max-height:68vh}
-    #cover.photo{gap:12px;padding:14px}
-    #start{padding:10px 24px}
-    .sheet{padding:14px 16px}
-    .gcard .im{height:66px}
+    .th{width:64px}.th .im{height:32px}.th em{display:none}
+    #tools{padding-top:4px}.tool{width:34px;height:28px}
+    #coverInner{padding-bottom:calc(5vh + env(safe-area-inset-bottom))}
   }
-
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 
 <div id="stage"></div>
-<div id="boot"><div class="ring"></div><div class="t">Preparing the tour</div>
-  <div class="s" id="bootNote">First view is loading</div></div>
-<audio id="amb" loop preload="none"></audio>
+<div id="fade"></div>
 <div id="spots"></div>
+<audio id="amb" loop preload="none"></audio>
+
+<div id="boot"><div class="ring"></div><div class="t">Preparing the tour</div>
+  <div class="s" id="bootNote">Loading the first view</div></div>
 
 <div id="hdr">
   <div class="fm">FSM Jayapena <b>&amp;</b> Co.</div>
   <div class="pj" id="pj"></div>
-  <div class="mob" id="mobLine"><b id="mobView"></b><span id="mobProg"></span></div>
+  <div class="mob"><b id="mobView"></b><span id="mobProg"></span></div>
 </div>
 <img id="logo" alt="" hidden>
+
+<div id="planScrim"></div>
+<div id="plan" hidden>
+  <div id="planBar">
+    <span class="t" id="planTitle">Floor Plan</span>
+    <button class="pbtn" id="planBig" title="Enlarge">&#10530;</button>
+    <button class="pbtn" id="planHide" title="Hide">&minus;</button>
+  </div>
+  <div id="planBox"><img id="planImg" alt=""><div id="cone"></div></div>
+</div>
 
 <button id="tuck" title="Hide panel"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
 
@@ -360,31 +357,22 @@
     <button class="tool" id="tGrid" title="All views"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button>
     <button class="tool" id="tInfo" title="About this project"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.2"/></svg></button>
     <span class="sp"></span>
-    <button class="tool" id="tSound" title="Ambient sound" hidden><svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7" class="wave1"/><path d="M18.5 5.5a9 9 0 010 13" class="wave2"/></svg></button>
-    <button class="tool" id="tAudio" title="Ambient sound" hidden><svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7" id="w1"/><path d="M18.5 5.5a9 9 0 010 13" id="w2"/></svg></button>
+    <button class="tool" id="tAudio" title="Ambient sound" hidden><svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path id="w1" d="M15.5 8.5a5 5 0 010 7"/><path id="w2" d="M18.5 5.5a9 9 0 010 13"/></svg></button>
     <button class="tool" id="tSpin" title="Auto-rotate"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg></button>
     <button class="tool" id="tFull" title="Full screen"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
   </div>
 </div>
 
-<div id="planScrim" hidden></div>
+<div class="sheet" id="grid"><button class="x" id="gridX">&times;</button>
+  <h2>All views</h2><div id="gridWrap"></div></div>
 
-<div class="sheet" id="grid">
-  <button class="x" id="gridX">×</button>
-  <h2>All views</h2>
-  <div id="gridWrap"></div>
-</div>
+<div class="sheet" id="info"><button class="x" id="infoX">&times;</button>
+  <h2>About this project</h2><div id="infoBody"></div></div>
 
-<div class="sheet" id="info">
-  <button class="x" id="infoX">×</button>
-  <h2>About this project</h2>
-  <div id="infoBody"></div>
-</div>
-
-<div id="matScrim" hidden></div>
+<div id="matScrim"></div>
 <div id="mat">
-  <button class="x" id="matX">×</button>
-  <div class="k" id="matKind">Material</div>
+  <button class="x" id="matX">&times;</button>
+  <div class="k" id="matKind"></div>
   <h3 id="matTitle"></h3>
   <img id="matImg" alt="" hidden>
   <div id="matBody"></div>
@@ -392,547 +380,479 @@
 </div>
 
 <div id="cover">
- <img id="coverBg" alt="" hidden>
- <div id="coverInner">
-  <img id="coverImg" alt="" hidden>
-  <img id="coverLogo" alt="" hidden>
-  <div class="rule"></div>
-  <h1 id="ch">360° Tour</h1>
-  <div class="client" id="cclient"></div>
-  <div class="count" id="cc"></div>
-  <button id="start">Enter the tour</button>
-  <div class="fail" id="cf"></div>
- </div>
+  <img id="coverBg" alt="" hidden>
+  <div id="coverInner">
+    <img id="coverImg" alt="" hidden>
+    <img id="coverLogo" alt="" hidden>
+    <div class="rule"></div>
+    <h1 id="ch">360&deg; Tour</h1>
+    <div class="client" id="cclient"></div>
+    <div class="count" id="cc"></div>
+    <button id="start">Enter the tour</button>
+    <div class="fail" id="cf"></div>
+  </div>
 </div>
 
 <div id="author">
-  <h2>Authoring mode</h2>
-  <p id="hint">Pick what you are placing, then click in the panorama.</p>
+  <h2>Authoring</h2>
+  <p id="hint">Click in the panorama to read a position. Use the nudge only if a hotspot
+     sits off its doorway.</p>
   <div class="row">
-    <button class="mini on" id="mLink">Navigation link</button>
-    <button class="mini" id="mSpot">Info hotspot</button>
+    <button class="mini" id="mLink">Read link</button>
+    <button class="mini" id="mSpot">Read material</button>
   </div>
   <textarea id="out" readonly placeholder="Captured lines appear here."></textarea>
   <div class="row">
     <button class="mini" id="cpy">Copy</button>
     <button class="mini" id="clr">Clear</button>
-    <button class="mini" id="cls">Close (Shift+E)</button>
+    <button class="mini" id="cls">Close</button>
   </div>
-  <div style="border-top:1px solid rgba(242,239,233,.14);padding-top:11px">
-    <p style="margin-bottom:7px"><b>Nudge the hotspots.</b> If they sit a little off the
-       doorway, drag until they land, then save the line into that view.</p>
+  <div style="border-top:1px solid rgba(242,239,233,.15);padding-top:11px">
+    <p style="margin-bottom:7px"><b>Nudge this view.</b> Drag until the hotspots land, then
+       save the line into that view in views.js.</p>
     <input type="range" id="nudge" min="-180" max="180" value="0" step="0.5">
     <div class="row" style="margin-top:7px">
-      <span style="font-size:12px;color:var(--dim)">offset
-        <b id="nudgeVal" style="color:#F2EFE9;font-variant-numeric:tabular-nums">0</b>°</span>
+      <span style="font-size:12px;color:rgba(242,239,233,.56)">offset
+        <b id="nudgeVal" style="color:#F2EFE9;font-variant-numeric:tabular-nums">0</b>&deg;</span>
       <button class="mini" id="nudgeSave">Save line</button>
       <button class="mini" id="nudgeZero">Reset</button>
     </div>
   </div>
-
-  <div style="border-top:1px solid rgba(242,239,233,.14);padding-top:11px">
-    <p style="margin-bottom:7px">North: face something you can find on the plan,
-       then drag until the map cone agrees. Release to apply.</p>
-    <input type="range" id="northCal" min="0" max="359" value="0" step="1">
-    <div class="row" style="margin-top:7px">
-      <span style="font-size:12px;color:var(--dim)">north
-        <b id="northVal" style="color:#F2EFE9;font-variant-numeric:tabular-nums">0</b>°</span>
-      <button class="mini" id="northSave">Save line</button>
-    </div>
-  </div>
 </div>
 
-<audio id="amb" loop preload="none"></audio>
-
 <script src="views.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var D2R = Math.PI/180, R2D = 180/Math.PI;
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-    "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.js",
-    "@photo-sphere-viewer/virtual-tour-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/virtual-tour-plugin@5/index.module.js",
-    "@photo-sphere-viewer/map-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/map-plugin@5/index.module.js",
-    "@photo-sphere-viewer/autorotate-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/autorotate-plugin@5/index.module.js"
-  }
-}
-</script>
-
-<script type="module">
-import { Viewer }            from '@photo-sphere-viewer/core';
-import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin';
-import { MapPlugin }         from '@photo-sphere-viewer/map-plugin';
-import { AutorotatePlugin }  from '@photo-sphere-viewer/autorotate-plugin';
-
-const $ = id => document.getElementById(id);
-const CFG = window.TOUR || {};
-const V   = (CFG.views || []).slice();
-const D2R = Math.PI / 180;
-
-V.forEach((v, i) => { if (!v.id) v.id = 'v' + (i + 1); });
+var CFG = window.TOUR || {};
+var V   = (CFG.views || []).slice();
+var LIB = CFG.materials || {};
+V.forEach(function(v,i){ if(!v.id) v.id = 'v'+(i+1); });
 
 /* ── cover ─────────────────────────────────────────── */
-$('pj').textContent      = CFG.project || '360° Tour';
-$('ch').textContent      = CFG.project || '360° Tour';
+$('pj').textContent      = CFG.project || '360\u00B0 Tour';
+$('ch').textContent      = CFG.project || '360\u00B0 Tour';
 $('cclient').textContent = CFG.client  || '';
-$('cc').textContent      = V.length + ' views — 360°';
-document.title           = (CFG.project || '360') + ' — 360° Tour';
-if (CFG.cover) {
-  $('coverImg').src = CFG.cover;
-  $('coverImg').hidden = false;
-  $('coverBg').src = CFG.cover;
-  $('coverBg').hidden = false;
-  $('coverImg').onerror = () => {         /* fall back to the typographic cover */
-    $('coverImg').hidden = true;
+$('cc').textContent      = V.length + ' views \u2014 360\u00B0';
+document.title           = (CFG.project || '360') + ' \u2014 360\u00B0 Tour';
+
+if(CFG.cover){
+  $('coverImg').src = CFG.cover; $('coverImg').hidden = false;
+  $('coverBg').src  = CFG.cover; $('coverBg').hidden  = false;
+  $('cover').classList.add('photo');
+  $('coverImg').onerror = function(){
+    $('coverImg').hidden = true; $('coverBg').hidden = true;
     $('cover').classList.remove('photo');
   };
-  $('cover').classList.add('photo');
 }
-if (CFG.logo) {
-  $('coverLogo').src = CFG.logo; $('coverLogo').hidden = false;
-  $('logo').src      = CFG.logo; $('logo').hidden      = false;
-}
-if (!V.length) { $('cf').textContent = 'No views listed in views.js.'; $('start').disabled = true; }
+if(CFG.logo){ $('coverLogo').src = CFG.logo; $('coverLogo').hidden = false;
+              $('logo').src = CFG.logo; $('logo').hidden = false; }
+if(!V.length){ $('cf').textContent = 'No views listed in views.js.'; $('start').disabled = true; }
 
 /* ── state ─────────────────────────────────────────── */
-let viewer, tour, map, spin;
-let live = [];              /* on-screen hotspots */
-let cur  = null;
-const seen  = new Set();
-const trail = [];
+var scene, cam, renderer, mesh, ray, cv;
+var lon = 0, lat = 0, fov = 72, drag = false, moved = 0, px=0, py=0, pl=0, pt=0;
+var cur = -1, spin = false, live = [], cache = {}, seen = {}, seenN = 0, trail = [];
+var authOn = false, authMode = 'link';
 
-/* ── floor plan pixel size (pins are stored as fractions) ── */
-function planSize() {
-  return new Promise(res => {
-    if (!CFG.plan || !CFG.plan.image) return res(null);
-    const img = new Image();
-    img.onload  = () => res({ w: img.naturalWidth, h: img.naturalHeight });
-    img.onerror = () => res(null);
-    img.src = CFG.plan.image;
+function view(){ return cur >= 0 ? V[cur] : null; }
+function offsetOf(v){ return (typeof v.yawOffset === 'number') ? v.yawOffset : 0; }
+
+/* ═══════════════════════════════════════════════════════
+   The engine below is the one Tour Studio uses: the same
+   sphere, the same rotation, the same projection. That is
+   what makes every hotspot land where it was clicked.
+   ═══════════════════════════════════════════════════════ */
+function initGL(){
+  scene = new THREE.Scene();
+  cam = new THREE.PerspectiveCamera(fov, innerWidth/innerHeight, .1, 1100);
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth, innerHeight);
+  $('stage').appendChild(renderer.domElement);
+  cv = renderer.domElement;
+
+  var g = new THREE.SphereGeometry(500,64,40); g.scale(-1,1,1);
+  mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:0x141210}));
+  scene.add(mesh);
+  ray = new THREE.Raycaster();
+
+  addEventListener('resize', function(){
+    cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+  bind(); loop();
+}
+
+function bind(){
+  cv.addEventListener('pointerdown', function(e){
+    drag = true; moved = 0; $('stage').classList.add('grabbing');
+    px = e.clientX; py = e.clientY; pl = lon; pt = lat;
+    cv.setPointerCapture(e.pointerId);
+    spin = false; $('tSpin').classList.remove('on');
+  });
+  cv.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    moved += Math.abs(e.clientX-px)+Math.abs(e.clientY-py);
+    var k = fov/72;
+    lon = pl-(e.clientX-px)*.16*k; lat = pt+(e.clientY-py)*.16*k;
+  });
+  ['pointerup','pointercancel'].forEach(function(ev){
+    cv.addEventListener(ev, function(){ drag=false; $('stage').classList.remove('grabbing'); });
+  });
+  cv.addEventListener('wheel', function(e){ e.preventDefault();
+    fov = Math.max(24, Math.min(96, fov+e.deltaY*.045)); }, {passive:false});
+
+  var pz = null;
+  function dd(e){ var a=e.touches[0], b=e.touches[1];
+    return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+  cv.addEventListener('touchstart', function(e){
+    if(e.touches.length===2) pz = {d:dd(e), f:fov}; }, {passive:true});
+  cv.addEventListener('touchmove', function(e){
+    if(e.touches.length===2 && pz){ e.preventDefault(); drag=false;
+      fov = Math.max(24, Math.min(96, pz.f*pz.d/dd(e))); } }, {passive:false});
+  cv.addEventListener('touchend', function(){ pz=null; }, {passive:true});
+
+  cv.addEventListener('click', function(e){
+    if(!authOn || moved>6 || cur<0) return;
+    var r = cv.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,
+                                        -((e.clientY-r.top)/r.height)*2+1), cam);
+    var d = ray.ray.direction;
+    var pitch = Math.asin(d.y)*R2D;
+    var yaw = Math.atan2(d.z,d.x)*R2D; if(yaw<0) yaw+=360;
+    push('        { ' + (authMode==='link' ? 'to: "ID-HERE", ' : '') +
+         'yaw: '+yaw.toFixed(1)+', pitch: '+pitch.toFixed(1) +
+         (authMode==='link' ? '' : ', mat: "CODE"') + ' },   /* '+view().name+' */');
+  });
+
+  addEventListener('keydown', function(e){
+    if(e.shiftKey && (e.key==='E'||e.key==='e')){ toggleAuthor(); e.preventDefault(); return; }
+    if(e.key==='Escape'){ closeAll(); return; }
+    var s = fov/12;
+    if(e.key==='ArrowLeft') lon-=s; else if(e.key==='ArrowRight') lon+=s;
+    else if(e.key==='ArrowUp') lat+=s; else if(e.key==='ArrowDown') lat-=s;
+    else if(e.key==='+'||e.key==='=') fov=Math.max(24,fov-4);
+    else if(e.key==='-') fov=Math.min(96,fov+4);
+    else return;
+    e.preventDefault();
   });
 }
 
-/* ── build ─────────────────────────────────────────── */
-async function build() {
-  const size = await planSize();
-
-  const nodes = V.map(v => {
-    const n = { id: v.id, panorama: v.file, name: v.name, links: [] };
-    /* The panorama is left unrotated. North is applied to the
-       hotspots and to the map instead, so what was clicked in
-       the Studio lands in exactly the same place here.        */
-    if (size) n.map = v.pin ? { x: Math.round(v.pin.x * size.w), y: Math.round(v.pin.y * size.h) } : false;
-    return n;
-  });
-
-  const tourCfg = {
-    dataMode: 'client', positionMode: 'manual', renderMode: '3d',
-    nodes, startNodeId: V[0].id, preload: false,
-    transitionOptions: { showLoader: true, speed: '20rpm', effect: 'fade', rotation: true },
-  };
-  if (size) tourCfg.map = { imageUrl: CFG.plan.image,
-                            size: (CFG.plan.size || '280px'),
-                            rotation: ((CFG.plan.rotation) || 0) + 'deg' };
-
-  const plugins = [
-    VirtualTourPlugin.withConfig(tourCfg),
-    AutorotatePlugin.withConfig({ autostartOnIdle: false, autorotateSpeed: '0.8rpm' }),
-  ];
-  if (size) plugins.push(MapPlugin.withConfig({
-    imageUrl: CFG.plan.image,
-    center: { x: Math.round(size.w / 2), y: Math.round(size.h / 2) },
-    rotation: ((CFG.plan.rotation) || 0) + 'deg',
-    size: '250px', maxZoom: 300, minZoom: 5,
-    defaultZoom: (CFG.plan.zoom != null ? CFG.plan.zoom : 20),
-    shape: 'square', static: true,
-    spotStyle: { size: 13, color: 'rgba(242,239,233,.7)', hoverSize: 17, hoverColor: '#F2EFE9' },
-  }));
-
-  viewer = new Viewer({
-    container: $('stage'), navbar: false, loadingTxt: '',
-    defaultZoomLvl: 35, maxFov: 95, minFov: 25,
-    mousewheelCtrlKey: false, touchmoveTwoFingers: false, plugins,
-  });
-
-  tour = viewer.getPlugin(VirtualTourPlugin);
-  map  = viewer.getPlugin(MapPlugin);
-  spin = viewer.getPlugin(AutorotatePlugin);
-
-  tour.addEventListener('node-changed', ({ node }) => onNode(node.id));
-  ['position-updated', 'zoom-updated', 'size-updated', 'render']
-    .forEach(e => viewer.addEventListener(e, place));
-
-  viewer.addEventListener('ready', () => {
-    const n = tour.getCurrentNode();
-    if (n) onNode(n.id);
-    $('boot').classList.remove('on');
-    setTimeout(fillStrip, 900);
-    spin.start();
-    ['mousedown', 'touchstart', 'wheel', 'keydown'].forEach(e =>
-      window.addEventListener(e, () => spin.stop(), { once: true }));
-    setTimeout(() => spin.stop(), 9000);
-  }, { once: true });
-
-  buildStrip(); buildGrid(); buildInfo(); wireAuthoring();
+function loop(){
+  requestAnimationFrame(loop);
+  if(spin) lon += 0.045;
+  lat = Math.max(-85, Math.min(85, lat));
+  var phi = (90-lat)*D2R, th = lon*D2R;
+  cam.lookAt(500*Math.sin(phi)*Math.cos(th), 500*Math.cos(phi), 500*Math.sin(phi)*Math.sin(th));
+  cam.fov = fov; cam.updateProjectionMatrix();
+  renderer.render(scene, cam);
+  placeSpots();
+  var c = $('cone');
+  if(c && c.style.display === 'block')
+    c.style.transform = 'rotate(' + (((lon%360)+360)%360) + 'deg)';
 }
 
-/* ── when the room changes ─────────────────────────── */
-function onNode(id) {
-  cur = id;
-  seen.add(id);
-  if (trail[trail.length - 1] !== id) trail.push(id);
-  const v = V.find(x => x.id === id) || {};
-  $('capView').textContent  = v.name || '';
-  $('capGroup').textContent = v.group ? '· ' + v.group : '';
-  const prog = seen.size + '/' + V.length +
-               '  (' + Math.round(seen.size / V.length * 100) + '%)';
-  $('prog').textContent = prog;
-  $('mobView').textContent = v.name || '';
-  $('mobProg').textContent = prog;
+/* ── switching views ───────────────────────────────── */
+function go(i){
+  if(i === cur || i < 0 || i >= V.length) return;
+  var v = V[i];
+  $('fade').classList.add('on');
+  setTimeout(function(){
+    cur = i;
+    lon = 0; lat = 0; fov = 72;
+    mesh.rotation.y = -(v.north || 0) * D2R;   /* exactly as the Studio does */
+    if(!seen[v.id]){ seen[v.id] = 1; seenN++; }
+    if(trail[trail.length-1] !== i) trail.push(i);
+    paintHead(); drawSpots(); markStrip(); markGrid(); drawPins();
+
+    if(cache[v.id]){ apply(cache[v.id]); return; }
+    $('boot').classList.add('on');
+    $('bootNote').textContent = v.name;
+    new THREE.TextureLoader().load(v.file, function(t){
+      t.minFilter = THREE.LinearFilter;
+      if(renderer.capabilities.getMaxAnisotropy) t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      cache[v.id] = t; apply(t);
+    }, undefined, function(){
+      $('bootNote').textContent = 'Could not load ' + v.file;
+    });
+  }, 420);
+}
+function apply(t){
+  mesh.material.map = t; mesh.material.color.setHex(0xffffff); mesh.material.needsUpdate = true;
+  $('boot').classList.remove('on');
+  $('fade').classList.remove('on');
+}
+
+function paintHead(){
+  var v = view();
+  var p = seenN + '/' + V.length + '  (' + Math.round(seenN/V.length*100) + '%)';
+  $('capView').textContent = v.name;
+  $('capGroup').textContent = v.group ? '\u00B7 '+v.group : '';
+  $('prog').textContent = p;
+  $('mobView').textContent = v.name; $('mobProg').textContent = p;
   $('tBack').hidden = trail.length < 2;
-  const nz = $('nudge');
-  if (nz) { const o = (typeof v.yawOffset === 'number') ? v.yawOffset : (v.north || 0);
-            nz.value = o; $('nudgeVal').textContent = o; }
-  const nc = $('northCal');
-  nc.value = (typeof v.north === 'number') ? v.north : 0;
-  $('northVal').textContent = nc.value;
-  drawSpots(id);
-  if (map && typeof v.north === 'number') {
-    try { map.setOption('rotation', (-v.north) + 'deg'); } catch (e) {}
-  }
-  markStrip();
-  markGrid();
+  var o = offsetOf(v);
+  $('nudge').value = o; $('nudgeVal').textContent = o;
 }
 
-/* ── hotspots: navigation + info ───────────────────── */
-/* A double chevron reads as "keep going this way", and the bob
-   animation makes it findable without shouting.               */
-const CHEV = '<svg viewBox="0 0 24 24"><path d="M6 13.5l6-6 6 6"/>' +
-             '<path d="M6 19l6-6 6 6" opacity=".55"/></svg>';
-const IBOX = '';   /* the info ring draws its own serif i in CSS */
+/* ── hotspots ──────────────────────────────────────── */
+var CHEV = '<svg viewBox="0 0 34 20"><path d="M8 4l7 6-7 6"/><path d="M18 4l7 6-7 6"/></svg>';
+var IBOX = '<svg viewBox="0 0 24 24"><path d="M12 10.6v6.2M12 6.9v.2"/></svg>';
 
-function drawSpots(id) {
+function drawSpots(){
   $('spots').innerHTML = ''; live = [];
-  const v = V.find(x => x.id === id);
-  if (!v) return;
+  var v = view(); if(!v) return;
+  var O = offsetOf(v);
 
-  /* Where the hotspots sit. Normally this is the view's north.
-     If they read a few degrees out, the nudge control in
-     authoring mode adjusts it and hands you the line to keep. */
-  const N = (typeof v.yawOffset === 'number') ? v.yawOffset : (v.north || 0);
-
-  (v.links || []).forEach(L => {
-    const dest = V.find(x => x.id === L.to);
-    if (!dest) { console.warn('[tour] unknown link target:', L.to); return; }
-    add('nav', (L.yaw || 0) + N, L.pitch ?? -6, L.label || dest.name, CHEV,
-        () => tour.setCurrentNode(L.to));
+  (v.links||[]).forEach(function(L){
+    var d = null;
+    for(var i=0;i<V.length;i++) if(V[i].id === L.to){ d = V[i]; break; }
+    if(!d){ console.warn('[tour] unknown link target:', L.to); return; }
+    var idx = V.indexOf(d);
+    add('nav', (L.yaw||0)+O, (typeof L.pitch==='number'?L.pitch:-6),
+        L.label || d.name, CHEV, function(){ go(idx); });
   });
-
-  (v.spots || []).forEach(S => {
-    const M = S.mat ? (CFG.materials || {})[S.mat] : null;
-    const label = S.title || (M && M.title) || S.mat || 'Detail';
-    add('info', (S.yaw || 0) + N, S.pitch ?? 0, label, IBOX, () => openMat(S));
+  (v.spots||[]).forEach(function(S){
+    var M = S.mat ? LIB[S.mat] : null;
+    add('info', (S.yaw||0)+O, (typeof S.pitch==='number'?S.pitch:0),
+        S.title || (M && M.title) || S.mat || 'Detail', IBOX, function(){ openMat(S); });
   });
 }
-
-function add(kind, yaw, pitch, label, icon, onclick) {
-  const el = document.createElement('div');
-  el.className = 'hs ' + kind;
-  el.innerHTML = '<span class="lbl">' + label + '</span><span class="ring">' + icon + '</span>';
-  el.onclick = onclick;
+function add(kind, yaw, pitch, label, icon, fn){
+  var el = document.createElement('div');
+  el.className = 'hs '+kind;
+  el.innerHTML = '<span class="lbl">'+label+'</span><span class="ring">'+icon+'</span>';
+  el.onclick = fn;
   $('spots').appendChild(el);
-  live.push({ el, yaw: (yaw || 0) * D2R, pitch: (pitch || 0) * D2R });
-  place();
+  live.push({ el:el, yaw:yaw*D2R, pitch:pitch*D2R });
 }
-
-function place() {
-  if (!live.length || !viewer) return;
-  const cam = viewer.getPosition();
-  live.forEach(h => {
-    const cosA = Math.sin(h.pitch) * Math.sin(cam.pitch) +
-                 Math.cos(h.pitch) * Math.cos(cam.pitch) * Math.cos(h.yaw - cam.yaw);
-    if (cosA < 0.12) { h.el.style.opacity = '0'; h.el.style.pointerEvents = 'none'; return; }
-    let p; try { p = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw: h.yaw, pitch: h.pitch }); }
-    catch (e) { return; }
-    if (!p) return;
-    h.el.style.left = p.x + 'px'; h.el.style.top = p.y + 'px';
-    h.el.style.opacity = '1'; h.el.style.pointerEvents = 'auto';
+/* identical projection to the Studio */
+function placeSpots(){
+  if(!live.length) return;
+  var camPitch = lat*D2R, camYaw = lon*D2R, W = innerWidth, H = innerHeight;
+  live.forEach(function(h){
+    var cosA = Math.sin(h.pitch)*Math.sin(camPitch) +
+               Math.cos(h.pitch)*Math.cos(camPitch)*Math.cos(h.yaw-camYaw);
+    if(cosA < .12){ h.el.style.opacity='0'; h.el.style.pointerEvents='none'; return; }
+    var vec = new THREE.Vector3(400*Math.cos(h.pitch)*Math.cos(h.yaw),
+                                400*Math.sin(h.pitch),
+                                400*Math.cos(h.pitch)*Math.sin(h.yaw));
+    vec.project(cam);
+    h.el.style.opacity='1'; h.el.style.pointerEvents='auto';
+    h.el.style.left = ((vec.x+1)/2*W)+'px';
+    h.el.style.top  = ((-vec.y+1)/2*H)+'px';
   });
 }
 
-/* ── material / detail card ────────────────────────── */
-const LIB = CFG.materials || {};
-
-/* The strip and the grid must never pull full panoramas on a
-   phone. If a thumbs folder is named, small copies are used —
-   same filenames, so nothing has to be renamed or listed.   */
-function thumbOf(v) {
-  if (v.thumb) return v.thumb;
-  if (CFG.thumbFolder) return CFG.thumbFolder.replace(/\/?$/, '/') + v.file;
-  return v.file;
-}
-
-function openMat(S) {
-  /* A spot either names a material code or carries its own text. */
-  const M = S.mat ? (LIB[S.mat] || {}) : {};
-  const d = { ...M, ...S };          /* anything written on the spot wins */
-
-  $('matKind').innerHTML = (S.mat ? '<span class="code">' + S.mat + '</span>' : '') +
+/* ── material card ─────────────────────────────────── */
+function openMat(S){
+  var M = S.mat ? (LIB[S.mat]||{}) : {};
+  var d = {}, k;
+  for(k in M) d[k] = M[k];
+  for(k in S) d[k] = S[k];
+  $('matKind').innerHTML = (S.mat ? '<span class="code">'+S.mat+'</span>' : '') +
                            (d.zone || d.kind || 'Detail');
-  $('matTitle').textContent = d.title || d.name || '';
-
-  if (d.image) { $('matImg').src = d.image; $('matImg').hidden = false; }
+  $('matTitle').textContent = d.title || '';
+  if(d.image){ $('matImg').src = d.image; $('matImg').hidden = false; }
   else $('matImg').hidden = true;
-
-  $('matBody').innerHTML = (d.body || d.desc || '')
-    .split('\n').filter(Boolean).map(t => '<p>' + t + '</p>').join('');
-
-  const rows = [];
-  if (d.appears)  rows.push(['Appears on', d.appears]);
-  if (d.supplier) rows.push(['Supplier', d.supplier]);
-  if (d.loc)      rows.push(['Location', d.loc]);
-  if (d.contact)  rows.push(['Contact', d.contact]);
-  if (d.ref)      rows.push(['Product reference', d.ref +
-      (d.link ? '<br><a href="https://' + d.link.replace(/^https?:\/\//, '') +
-                '" target="_blank" rel="noopener">' + d.link + '</a>' : '')]);
-  if (d.status)   rows.push(['Status',
-      '<span class="chip ' + d.status.toLowerCase().replace(/[^a-z]/g, '') + '">' +
-      d.status + '</span>']);
-  Object.entries(d.facts || {}).forEach(([k, v]) => rows.push([k, v]));
-
-  $('matFacts').innerHTML = rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('') +
+  $('matBody').innerHTML = String(d.body || d.desc || '').split('\n')
+    .filter(Boolean).map(function(t){ return '<p>'+t+'</p>'; }).join('');
+  var rows = [];
+  if(d.appears)  rows.push(['Appears on', d.appears]);
+  if(d.supplier) rows.push(['Supplier', d.supplier]);
+  if(d.loc)      rows.push(['Location', d.loc]);
+  if(d.contact)  rows.push(['Contact', d.contact]);
+  if(d.ref)      rows.push(['Product reference', d.ref + (d.link ?
+      '<br><a href="https://'+String(d.link).replace(/^https?:\/\//,'') +
+      '" target="_blank" rel="noopener">'+d.link+'</a>' : '')]);
+  if(d.status)   rows.push(['Status','<span class="chip '+
+      String(d.status).toLowerCase().replace(/[^a-z]/g,'')+'">'+d.status+'</span>']);
+  $('matFacts').innerHTML = rows.map(function(r){
+      return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>'; }).join('') +
     (d.supplier ? '<div class="foot">Supplier references are researched from public sources ' +
-                  'and must be confirmed by quotation. Materials are indicative of colour and ' +
-                  'texture; final selection is subject to sample approval.</div>' : '');
-
-  $('mat').classList.add('on');
-  $('matScrim').classList.add('on');
+      'and must be confirmed by quotation. Materials are indicative of colour and texture; ' +
+      'final selection is subject to sample approval.</div>' : '');
+  $('mat').classList.add('on'); $('matScrim').classList.add('on');
 }
 function closeMat(){ $('mat').classList.remove('on'); $('matScrim').classList.remove('on'); }
-$('matX').onclick = closeMat;
-$('matScrim').onclick = closeMat;
+$('matX').onclick = closeMat; $('matScrim').onclick = closeMat;
 
-/* ── thumbnail strip ───────────────────────────────── */
-function buildStrip() {
-  const box = $('strip'); box.innerHTML = '';
-  V.forEach(v => {
-    const b = document.createElement('button');
-    b.className = 'th'; b.dataset.id = v.id; b.title = v.name;
-    b.innerHTML = '<div class="im"><img decoding="async" data-src="' + thumbOf(v) + '" alt=""></div>' +
+/* ── strip, grid, plan ─────────────────────────────── */
+function thumbOf(v){
+  if(v.thumb) return v.thumb;
+  if(CFG.thumbFolder) return String(CFG.thumbFolder).replace(/\/?$/,'/') + v.file;
+  return v.file;
+}
+function buildStrip(){
+  var box = $('strip'); box.innerHTML = '';
+  V.forEach(function(v,i){
+    var b = document.createElement('button');
+    b.className='th'; b.setAttribute('data-id', v.id); b.title = v.name;
+    b.innerHTML = '<div class="im"><img decoding="async" data-src="'+thumbOf(v)+'" alt=""></div>' +
       '<div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
-      '<em>' + v.name + '</em>';
-    b.onclick = () => tour.setCurrentNode(v.id);
+      '<em>'+v.name+'</em>';
+    b.onclick = function(){ go(i); };
     box.appendChild(b);
   });
 }
-/* Thumbnails arrive one at a time, and only once the first
-   panorama is on screen. Without this the strip pulls every
-   panorama at once and the tour crawls on mobile data.     */
-function fillStrip() {
-  const imgs = [...$('strip').querySelectorAll('img[data-src]')];
-  let i = 0;
-  (function next() {
-    if (i >= imgs.length) return;
-    const im = imgs[i++];
-    im.onload = im.onerror = () => setTimeout(next, 90);
-    if (im.onerror) im.addEventListener('error', () => {
-      const box = im.parentElement;
-      box.style.background = '#2A2521';
-      im.remove();
-    }, { once: true });
-    im.src = im.dataset.src;
-    im.removeAttribute('data-src');
+function fillStrip(){
+  var imgs = [].slice.call($('strip').querySelectorAll('img[data-src]')), i = 0;
+  (function next(){
+    if(i >= imgs.length) return;
+    var im = imgs[i++];
+    im.onload  = function(){ setTimeout(next, 80); };
+    im.onerror = function(){ im.parentNode.style.background = '#2A2521';
+                             im.parentNode.removeChild(im); setTimeout(next, 40); };
+    im.src = im.getAttribute('data-src'); im.removeAttribute('data-src');
   })();
 }
-
-function markStrip() {
-  [...$('strip').children].forEach(b => {
-    b.classList.toggle('on', b.dataset.id === cur);
-    b.classList.toggle('seen', seen.has(b.dataset.id));
-    if (b.dataset.id === cur) b.scrollIntoView({ block: 'nearest', inline: 'center' });
+function markStrip(){
+  [].forEach.call($('strip').children, function(b){
+    var on = b.getAttribute('data-id') === view().id;
+    b.className = 'th' + (on ? ' on' : '') + (seen[b.getAttribute('data-id')] ? ' seen' : '');
+    if(on && b.scrollIntoView) b.scrollIntoView({block:'nearest', inline:'center'});
   });
 }
-
-/* ── grid of every view ────────────────────────────── */
-function buildGrid() {
-  const wrap = $('gridWrap'); wrap.innerHTML = '';
-  const groups = [];
-  V.forEach(v => { if (!groups.includes(v.group)) groups.push(v.group); });
-  groups.forEach(g => {
-    const sec = document.createElement('div'); sec.className = 'ggroup';
-    sec.innerHTML = '<h3>' + (g || 'Views') + '</h3>';
-    const items = document.createElement('div'); items.className = 'gitems';
-    V.filter(v => v.group === g).forEach(v => {
-      const c = document.createElement('button');
-      c.className = 'gcard'; c.dataset.id = v.id;
-      c.innerHTML = '<div class="im"><img loading="lazy" decoding="async" src="' + thumbOf(v) +
-                    '" alt=""></div><span>' + v.name + '</span>';
-      c.onclick = () => { $('grid').classList.remove('on'); tour.setCurrentNode(v.id); };
+function buildGrid(){
+  var wrap = $('gridWrap'); wrap.innerHTML=''; var groups=[];
+  V.forEach(function(v){ if(groups.indexOf(v.group)<0) groups.push(v.group); });
+  groups.forEach(function(g){
+    var sec = document.createElement('div'); sec.className='ggroup';
+    sec.innerHTML = '<h3>'+(g||'Views')+'</h3>';
+    var items = document.createElement('div'); items.className='gitems';
+    V.forEach(function(v,i){
+      if(v.group !== g) return;
+      var c = document.createElement('button');
+      c.className='gcard'; c.setAttribute('data-id', v.id);
+      c.innerHTML = '<div class="im"><img loading="lazy" decoding="async" src="'+thumbOf(v)+
+                    '" alt=""></div><span>'+v.name+'</span>';
+      c.onclick = function(){ $('grid').classList.remove('on'); go(i); };
       items.appendChild(c);
     });
     sec.appendChild(items); wrap.appendChild(sec);
   });
 }
-function markGrid() {
-  [...document.querySelectorAll('.gcard')]
-    .forEach(c => c.classList.toggle('seen', seen.has(c.dataset.id)));
+function markGrid(){
+  [].forEach.call(document.querySelectorAll('.gcard'), function(c){
+    c.className = 'gcard' + (seen[c.getAttribute('data-id')] ? ' seen' : '');
+  });
+}
+function buildPlan(){
+  if(!CFG.plan || !CFG.plan.image) return;
+  $('plan').hidden = false;
+  if(CFG.plan.title) $('planTitle').textContent = CFG.plan.title;
+  $('planImg').onerror = function(){ $('plan').hidden = true; };
+  $('planImg').onload  = drawPins;
+  $('planImg').src = CFG.plan.image;
+}
+function drawPins(){
+  var box = $('planBox'); if(!box) return;
+  [].forEach.call(box.querySelectorAll('.ppin'), function(p){ box.removeChild(p); });
+  V.forEach(function(v,i){
+    if(!v.pin) return;
+    var d = document.createElement('button');
+    d.className = 'ppin'+(i===cur?' on':'');
+    d.style.left = (v.pin.x*100)+'%'; d.style.top = (v.pin.y*100)+'%';
+    d.innerHTML = '<b>'+v.name+'</b>'; d.title = v.name;
+    d.onclick = function(e){ e.stopPropagation(); go(i); };
+    box.appendChild(d);
+  });
+  var c = $('cone'), v = view();
+  if(v && v.pin){ c.style.display='block';
+    c.style.left = (v.pin.x*100)+'%'; c.style.top = (v.pin.y*100)+'%'; }
+  else c.style.display='none';
 }
 
-/* ── project info sheet ────────────────────────────── */
-function buildInfo() {
-  const src = CFG.info || 'No project notes have been added yet.';
-  $('infoBody').innerHTML = src.split('\n').filter(Boolean).map(line =>
-    line.startsWith('# ') ? '<h4>' + line.slice(2) + '</h4>' : '<p>' + line + '</p>').join('');
+/* ── info sheet ────────────────────────────────────── */
+function buildInfo(){
+  var src = CFG.info || 'No project notes have been added yet.';
+  $('infoBody').innerHTML = String(src).split('\n').filter(Boolean).map(function(l){
+    return l.indexOf('# ')===0 ? '<h4>'+l.slice(2)+'</h4>' : '<p>'+l+'</p>'; }).join('');
 }
 
 /* ── toolbar ───────────────────────────────────────── */
-$('tHome').onclick = () => tour.setCurrentNode(V[0].id);
-$('tBack').onclick = () => { if (trail.length < 2) return; trail.pop(); tour.setCurrentNode(trail.pop()); };
-$('tPlan').onclick = () => {
-  const open = document.body.classList.toggle('plan-open');
-  $('tPlan').classList.toggle('on', open);
-};
-$('planScrim').onclick = () => {
-  document.body.classList.remove('plan-open');
+function closeAll(){
+  $('grid').classList.remove('on'); $('info').classList.remove('on'); closeMat();
+  document.body.classList.remove('plan-big'); $('plan').classList.remove('big');
+  $('tPlan').classList.remove('on');
+}
+$('tHome').onclick = function(){ go(0); };
+$('tBack').onclick = function(){ if(trail.length<2) return; trail.pop(); go(trail.pop()); };
+$('tGrid').onclick = function(){ $('grid').classList.add('on'); };
+$('gridX').onclick = function(){ $('grid').classList.remove('on'); };
+$('tInfo').onclick = function(){ $('info').classList.add('on'); };
+$('infoX').onclick = function(){ $('info').classList.remove('on'); };
+$('tSpin').onclick = function(){ spin = !spin; this.classList.toggle('on', spin); };
+$('tFull').onclick = function(){ document.fullscreenElement ? document.exitFullscreen()
+  : document.documentElement.requestFullscreen(); };
+$('tuck').onclick = function(){ document.body.classList.toggle('tucked'); };
+function togglePlan(){
+  var big = document.body.classList.toggle('plan-big');
+  $('plan').classList.toggle('big', big);
+  $('tPlan').classList.toggle('on', big);
+}
+$('tPlan').onclick   = togglePlan;
+$('planBig').onclick = togglePlan;
+$('planScrim').onclick = function(){
+  document.body.classList.remove('plan-big'); $('plan').classList.remove('big');
   $('tPlan').classList.remove('on');
 };
-$('tGrid').onclick = () => $('grid').classList.add('on');
-$('gridX').onclick = () => $('grid').classList.remove('on');
-$('tInfo').onclick = () => $('info').classList.add('on');
-$('infoX').onclick = () => $('info').classList.remove('on');
-/* Ambient sound. Browsers block audio until the visitor has
-   clicked something — entering the tour counts as that click. */
-const amb = $('amb');
-let ambFade = null;
-if (CFG.audio) {
-  amb.src = CFG.audio;
-  amb.volume = 0;
-  $('tSound').hidden = false;
-}
-function fadeAudio(to, done) {
-  clearInterval(ambFade);
-  ambFade = setInterval(() => {
-    const step = to > amb.volume ? 0.04 : -0.04;
-    let v = amb.volume + step;
-    if (v <= 0) { v = 0; clearInterval(ambFade); if (done) done(); }
-    else if (v >= to && step > 0) { v = to; clearInterval(ambFade); }
-    amb.volume = Math.min(1, Math.max(0, v));
-  }, 45);
-}
-function soundOn(on) {
-  $('tSound').classList.toggle('on', on);
-  if (on) { amb.play().catch(() => {}); fadeAudio(CFG.audioVolume ?? 0.45); }
-  else fadeAudio(0, () => amb.pause());
-}
-$('tSound').onclick = function () { soundOn(!this.classList.contains('on')); };
+$('planHide').onclick = function(){ $('plan').hidden = true; };
 
-/* Ambient sound. Off by default — nobody wants a page that
-   starts making noise at them. The label animates when live. */
-if (CFG.audio) {
-  const amb = $('amb');
-  amb.src = CFG.audio;
+if(CFG.audio){
+  var amb = $('amb'); amb.src = CFG.audio;
   amb.volume = (typeof CFG.audioVolume === 'number') ? CFG.audioVolume : 0.35;
   $('tAudio').hidden = false;
-  $('tAudio').onclick = function () {
-    if (this.classList.contains('on')) { amb.pause(); this.classList.remove('on'); }
-    else { amb.play().then(() => this.classList.add('on'))
-                     .catch(e => console.warn('audio blocked:', e)); }
+  $('tAudio').onclick = function(){
+    var self = this;
+    if(self.classList.contains('on')){ amb.pause(); self.classList.remove('on'); }
+    else amb.play().then(function(){ self.classList.add('on'); })
+                   .catch(function(e){ console.warn('audio blocked', e); });
   };
 }
-
-$('tSpin').onclick = function () {
-  const on = this.classList.toggle('on');
-  on ? spin.start() : spin.stop();
-};
-$('tFull').onclick = () => document.fullscreenElement
-  ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-$('tuck').onclick = () => {
-  const t = document.body.classList.toggle('tucked');
-  $('bar').classList.toggle('tucked', t);
-};
-window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    $('grid').classList.remove('on'); $('info').classList.remove('on');
-    closeMat();
-    document.body.classList.remove('plan-open'); $('tPlan').classList.remove('on');
-  }
-});
 
 /* ── authoring ─────────────────────────────────────── */
-function wireAuthoring() {
-  let on = false, mode = 'link';
-  const push = t => { const o = $('out'); o.value += (o.value ? '\n' : '') + t; o.scrollTop = 1e6; };
-
-  window.addEventListener('keydown', e => {
-    if (e.shiftKey && (e.key === 'E' || e.key === 'e')) {
-      on = !on; $('author').classList.toggle('on', on); e.preventDefault();
-    }
-  });
-
-  $('mLink').onclick = () => { mode = 'link'; $('mLink').classList.add('on');
-    $('mSpot').classList.remove('on'); $('hint').textContent = 'Click the doorway you want to walk through.'; };
-  $('mSpot').onclick = () => { mode = 'spot'; $('mSpot').classList.add('on');
-    $('mLink').classList.remove('on'); $('hint').textContent = 'Click the material or feature you want to describe.'; };
-
-  viewer.addEventListener('click', ({ data }) => {
-    if (!on) return;
-    let yaw = data.yaw * 180 / Math.PI; yaw = (yaw % 360 + 360) % 360;
-    const pitch = data.pitch * 180 / Math.PI;
-    const v = V.find(x => x.id === cur) || {};
-    if (mode === 'link')
-      push('        { to: "ID-HERE", yaw: ' + yaw.toFixed(1) + ', pitch: ' + pitch.toFixed(1) +
-           ' },   /* from ' + (v.name || '') + ' */');
-    else
-      push('        { yaw: ' + yaw.toFixed(1) + ', pitch: ' + pitch.toFixed(1) +
-           ', mat: "CODE" },   /* ' + (v.name || '') + ' */');
-  });
-
-  $('cpy').onclick = () => { $('out').select(); document.execCommand('copy'); };
-  $('clr').onclick = () => { $('out').value = ''; };
-  $('cls').onclick = () => { on = false; $('author').classList.remove('on'); };
-
-  function curView(){ return V.find(x => x.id === cur); }
-  function setOffset(val){
-    const v = curView(); if (!v) return;
-    v.yawOffset = +val;
-    $('nudge').value = val; $('nudgeVal').textContent = val;
-    drawSpots(cur);
-  }
-  $('nudge').oninput   = function(){ setOffset(this.value); };
-  $('nudgeZero').onclick = function(){
-    const v = curView(); if (v) setOffset(v.north || 0);
-  };
-  $('nudgeSave').onclick = () => {
-    const v = curView(); if (!v) return;
-    push('      yawOffset: ' + (v.yawOffset || 0) + ',   /* ' + v.name + ' */');
-  };
-
-  $('northCal').oninput  = function () { $('northVal').textContent = this.value; };
-  $('northCal').onchange = function () {
-    const v = V.find(x => x.id === cur);
-    if (v) { v.north = +this.value; drawSpots(cur);
-             if (map) { try { map.setOption('rotation', (-v.north) + 'deg'); } catch (e) {} } }
-  };
-  $('northSave').onclick = () => {
-    const v = V.find(x => x.id === cur) || {};
-    push('      north: ' + $('northCal').value + ',   /* ' + (v.name || '') + ' */');
-  };
-}
+function toggleAuthor(){ authOn = !authOn; $('author').classList.toggle('on', authOn); }
+function push(t){ var o = $('out'); o.value += (o.value?'\n':'')+t; o.scrollTop = 1e6; }
+$('mLink').onclick = function(){ authMode='link'; };
+$('mSpot').onclick = function(){ authMode='spot'; };
+$('cpy').onclick   = function(){ $('out').select(); document.execCommand('copy'); };
+$('clr').onclick   = function(){ $('out').value=''; };
+$('cls').onclick   = function(){ authOn=false; $('author').classList.remove('on'); };
+$('nudge').oninput = function(){
+  var v = view(); if(!v) return;
+  v.yawOffset = +this.value; $('nudgeVal').textContent = this.value; drawSpots();
+};
+$('nudgeZero').onclick = function(){
+  var v = view(); if(!v) return;
+  v.yawOffset = 0; $('nudge').value = 0; $('nudgeVal').textContent = 0; drawSpots();
+};
+$('nudgeSave').onclick = function(){
+  var v = view(); if(!v) return;
+  push('      yawOffset: '+(v.yawOffset||0)+',   /* '+v.name+' */');
+};
 
 /* ── go ────────────────────────────────────────────── */
-$('start').onclick = async () => {
+$('start').onclick = function(){
   $('cover').classList.add('gone');
-  setTimeout(() => { $('cover').style.display = 'none'; }, 1100);
-  try {
-    await build();
-    if (CFG.audio && CFG.audioAutoplay) soundOn(true);
-  }
-  catch (err) {
-    console.error('Tour failed to start:', err);
-    $('cover').style.display = 'flex'; $('cover').classList.remove('gone');
-    $('cf').textContent = 'The viewer could not start: ' + err.message;
+  setTimeout(function(){ $('cover').style.display='none'; }, 1050);
+  try{
+    if(!window.THREE) throw new Error('the 3D library did not load — check the connection');
+    initGL(); buildStrip(); buildGrid(); buildInfo(); buildPlan();
+    go(0);
+    setTimeout(fillStrip, 1200);
+  }catch(err){
+    console.error(err);
+    $('cover').style.display='flex'; $('cover').classList.remove('gone');
+    $('cf').textContent = 'The viewer could not start: '+err.message;
   }
 };
+})();
 </script>
 </body>
 </html>
