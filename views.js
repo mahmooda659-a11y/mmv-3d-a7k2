@@ -433,8 +433,8 @@ window.TOUR = {
       heading: 0,
       north: 0,
       links: [
-        { to: "suraufemale", yaw: 234, pitch: -5 },
-        { to: "suraumale",   yaw: 247, pitch: -5 },
+        { to: "suraumale",   yaw: 234, pitch: -5 },
+        { to: "suraufemale", yaw: 247, pitch: -5 },
         { to: "entrance",    yaw: 290, pitch: -5 }
       ],
       spots: [
@@ -475,12 +475,12 @@ window.TOUR = {
         { to: "entrance", yaw: 111.7, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 181.5, pitch: 0, mat: "BR-02" },
-        { yaw: 193.6, pitch: 0, mat: "GL-01" },
-        { yaw: 289.6, pitch: 0, mat: "FL-02" },
-        { yaw: 117.2, pitch: 0, mat: "LT-03" },
-        { yaw: 13.7,  pitch: 0, mat: "FN-02" },
-        { yaw: 75.4,  pitch: 0, mat: "RG-01" }
+        { yaw: 181.5, pitch: 26.8, mat: "BR-02" },
+        { yaw: 193.6, pitch: -7.9, mat: "GL-01" },
+        { yaw: 289.6, pitch: -57.6, mat: "FL-02" },
+        { yaw: 117.2, pitch: 28.7, mat: "LT-03" },
+        { yaw: 13.7, pitch: -37.5, mat: "FN-02" },
+        { yaw: 75.4, pitch: -48.2, mat: "RG-01" }
       ] },
 
     { id: "dining",
@@ -497,14 +497,14 @@ window.TOUR = {
         { to: "office",   yaw: 280.7, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 272.8, pitch: 0, mat: "BR-01" },
-        { yaw: 274.8, pitch: 0, mat: "TB-01" },
-        { yaw: 304.1, pitch: 0, mat: "TB-02" },
-        { yaw: 309.8, pitch: 0, mat: "FL-01" },
-        { yaw: 105.0, pitch: 0, mat: "ST-01" },
-        { yaw: 313.3, pitch: 0, mat: "LT-01" },
-        { yaw: 345.4, pitch: 0, mat: "LT-02" },
-        { yaw: 87.5,  pitch: 0, mat: "FN-01" }
+        { yaw: 272.8, pitch: 5.7, mat: "BR-01" },
+        { yaw: 274.8, pitch: 54.5, mat: "TB-01" },
+        { yaw: 304.1, pitch: -3.1, mat: "TB-02" },
+        { yaw: 309.8, pitch: -54.0, mat: "FL-01" },
+        { yaw: 105.0, pitch: 9.1, mat: "ST-01" },
+        { yaw: 313.3, pitch: 51.0, mat: "LT-01" },
+        { yaw: 345.4, pitch: 9.3, mat: "LT-02" },
+        { yaw: 87.5, pitch: -43.9, mat: "FN-01" }
       ] },
 
     { id: "kitchen",
@@ -519,10 +519,10 @@ window.TOUR = {
         { to: "dining", yaw: 93.5, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 64.4,  pitch: 0, mat: "FL-01" },
-        { yaw: 130.8, pitch: 0, mat: "BR-01" },
-        { yaw: 268.9, pitch: 0, mat: "AL-01" },
-        { yaw: 272.7, pitch: 0, mat: "LT-01" }
+        { yaw: 64.4, pitch: -76.9, mat: "FL-01" },
+        { yaw: 130.8, pitch: -5.7, mat: "BR-01" },
+        { yaw: 268.9, pitch: -10.9, mat: "AL-01" },
+        { yaw: 272.7, pitch: 41.2, mat: "LT-01" }
       ] },
 
     { id: "office",
@@ -536,11 +536,11 @@ window.TOUR = {
         { to: "dining", yaw: 79.3, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 183.0, pitch: 0, mat: "FL-04" },
-        { yaw: 124.7, pitch: 0, mat: "WL-01" },
-        { yaw: 193.2, pitch: 0, mat: "AL-01" },
-        { yaw: 186.7, pitch: 0, mat: "BR-02" },
-        { yaw: 187.0, pitch: 0, mat: "LT-01" }
+        { yaw: 183.0, pitch: -75.8, mat: "FL-04" },
+        { yaw: 124.7, pitch: 0.6, mat: "WL-01" },
+        { yaw: 193.2, pitch: -18.4, mat: "AL-01" },
+        { yaw: 186.7, pitch: -26.3, mat: "BR-02" },
+        { yaw: 187.0, pitch: 40.1, mat: "LT-01" }
       ] },
 
     { id: "washfemale",
@@ -554,12 +554,12 @@ window.TOUR = {
         { to: "front", yaw: 203.0, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 36.8,  pitch: 0, mat: "TL-01" },
-        { yaw: 23.6,  pitch: 0, mat: "TB-03" },
-        { yaw: 4.9,   pitch: 0, mat: "FL-03" },
-        { yaw: 286.6, pitch: 0, mat: "SW-01" },
-        { yaw: 346.8, pitch: 0, mat: "SW-02" },
-        { yaw: 278.5, pitch: 0, mat: "MR-01" }
+        { yaw: 36.8, pitch: 15.1, mat: "TL-01" },
+        { yaw: 23.6, pitch: -28.8, mat: "TB-03" },
+        { yaw: 4.9, pitch: -78.6, mat: "FL-03" },
+        { yaw: 286.6, pitch: -42.1, mat: "SW-01" },
+        { yaw: 346.8, pitch: -27.1, mat: "SW-02" },
+        { yaw: 278.5, pitch: 11.4, mat: "MR-01" }
       ] },
 
     { id: "washmale",
@@ -573,12 +573,12 @@ window.TOUR = {
         { to: "front", yaw: 161.5, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 316.3, pitch: 0, mat: "TL-01" },
-        { yaw: 327.8, pitch: 0, mat: "TB-03" },
-        { yaw: 10.9,  pitch: 0, mat: "FL-03" },
-        { yaw: 62.3,  pitch: 0, mat: "SW-01" },
-        { yaw: 4.7,   pitch: 0, mat: "SW-02" },
-        { yaw: 90.0,  pitch: 0, mat: "MR-01" }
+        { yaw: 316.3, pitch: 31.2, mat: "TL-01" },
+        { yaw: 327.8, pitch: -20.5, mat: "TB-03" },
+        { yaw: 10.9, pitch: -72.7, mat: "FL-03" },
+        { yaw: 62.3, pitch: -30.7, mat: "SW-01" },
+        { yaw: 4.7, pitch: -21.9, mat: "SW-02" },
+        { yaw: 90.0, pitch: 21.2, mat: "MR-01" }
       ] },
 
     { id: "suraufemale",
@@ -592,12 +592,12 @@ window.TOUR = {
         { to: "sideentry", yaw: 293.9, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 143.6, pitch: 0, mat: "TB-04" },
-        { yaw: 294.2, pitch: 0, mat: "GR-01" },
-        { yaw: 328.8, pitch: 0, mat: "FL-04" },
-        { yaw: 140.7, pitch: 0, mat: "TZ-01" },
-        { yaw: 84.9,  pitch: 0, mat: "SJ-01" },
-        { yaw: 88.8,  pitch: 0, mat: "WL-01" }
+        { yaw: 143.6, pitch: 5.2, mat: "TB-04" },
+        { yaw: 294.2, pitch: -0.4, mat: "GR-01" },
+        { yaw: 328.8, pitch: -70.0, mat: "FL-04" },
+        { yaw: 140.7, pitch: -73.2, mat: "TZ-01" },
+        { yaw: 84.9, pitch: -49.9, mat: "SJ-01" },
+        { yaw: 88.8, pitch: -12.7, mat: "WL-01" }
       ] },
 
     { id: "suraumale",
@@ -611,12 +611,12 @@ window.TOUR = {
         { to: "sideentry", yaw: 257.7, pitch: -4.0 }
       ],
       spots: [
-        { yaw: 1.0,   pitch: 0, mat: "TB-04" },
-        { yaw: 257.3, pitch: 0, mat: "GR-01" },
-        { yaw: 218.0, pitch: 0, mat: "FL-04" },
-        { yaw: 359.8, pitch: 0, mat: "TZ-01" },
-        { yaw: 73.0,  pitch: 0, mat: "SJ-01" },
-        { yaw: 85.4,  pitch: 0, mat: "WL-01" }
+        { yaw: 1.0, pitch: 5.3, mat: "TB-04" },
+        { yaw: 257.3, pitch: -24.8, mat: "GR-01" },
+        { yaw: 218.0, pitch: -75.4, mat: "FL-04" },
+        { yaw: 359.8, pitch: -67.5, mat: "TZ-01" },
+        { yaw: 73.0, pitch: -46.3, mat: "SJ-01" },
+        { yaw: 85.4, pitch: -8.7, mat: "WL-01" }
       ] }
 
   ]
